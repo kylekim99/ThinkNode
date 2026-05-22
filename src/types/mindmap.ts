@@ -1,6 +1,7 @@
 export interface MindMapMeta {
   id: string;
   name: string;
+  type: 'mindmap' | 'flowchart';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,11 +26,19 @@ export interface SerializedNode {
   data: MindMapNodeData;
 }
 
+export interface FlowchartNodeData extends Record<string, unknown> {
+  content: string;
+  shape: 'start-end' | 'process' | 'decision' | 'io';
+}
+
 export interface SerializedEdge {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   type: string;
+  label?: string;
 }
 
 export interface HistoryEntry {

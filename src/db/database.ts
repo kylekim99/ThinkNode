@@ -7,9 +7,23 @@ class ThinkNodeDB extends Dexie {
 
   constructor() {
     super('thinknode');
+
+    // Version 1: original schema
     this.version(1).stores({
       mindmaps: 'id, name, createdAt, updatedAt',
       mapData: 'mapId',
+    });
+
+    // Version 2: add type field to mindmaps
+    this.version(2).stores({
+      mindmaps: 'id, name, type, createdAt, updatedAt',
+      mapData: 'mapId',
+    }).upgrade((tx) => {
+      return tx.table('mindmaps').toCollection().modify((map) => {
+        if (!map.type) {
+          map.type = 'mindmap';
+        }
+      });
     });
   }
 }

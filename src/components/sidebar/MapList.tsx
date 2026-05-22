@@ -74,7 +74,10 @@ export function MapList() {
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className="text-sm font-medium text-slate-700 truncate flex-1">
+              <span className="text-sm font-medium text-slate-700 truncate flex-1 flex items-center gap-1.5">
+                <span className="flex-shrink-0" title={map.type === 'flowchart' ? 'Flowchart' : 'Mind Map'}>
+                  {map.type === 'flowchart' ? '\uD83D\uDCD0' : '\uD83E\uDDE0'}
+                </span>
                 {map.name}
               </span>
             )}

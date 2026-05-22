@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import type { Node, Edge } from '@xyflow/react';
-import type { MindMapMeta, MindMapNodeData, HistoryEntry, SerializedNode, SerializedEdge } from '../types/mindmap';
+import { MarkerType } from '@xyflow/react';
+import type { MindMapMeta, MindMapNodeData, FlowchartNodeData, HistoryEntry, SerializedNode, SerializedEdge } from '../types/mindmap';
 import { getAllMaps, createMap as dbCreateMap, updateMapMeta, deleteMapFromDB, getMapData, saveMapData } from '../db/database';
 import { computeLayout, type LayoutDirection } from '../lib/layoutEngine';
 import { parseTags } from '../lib/tagParser';
@@ -21,7 +22,10 @@ function serializeEdges(edges: Edge[]): SerializedEdge[] {
     id: e.id,
     source: e.source,
     target: e.target,
+    sourceHandle: e.sourceHandle || undefined,
+    targetHandle: e.targetHandle || undefined,
     type: e.type || 'smoothstep',
+    label: typeof e.label === 'string' ? e.label : undefined,
   }));
 }
 
@@ -39,7 +43,10 @@ function deserializeEdges(edges: SerializedEdge[]): Edge[] {
     id: e.id,
     source: e.source,
     target: e.target,
+    sourceHandle: e.sourceHandle || undefined,
+    targetHandle: e.targetHandle || undefined,
     type: e.type || 'smoothstep',
+    ...(e.label ? { label: e.label } : {}),
   }));
 }
 
@@ -80,24 +87,29 @@ interface MapStore {
   edges: Edge[];
   selectedNodeId: string | null;
   editingNodeId: string | null;
+  selectedEdgeId: string | null;
   past: HistoryEntry[];
   future: HistoryEntry[];
   dirty: boolean;
 
   init: () => Promise<void>;
-  createMap: (name: string) => Promise<void>;
+  createMap: (name: string, type?: 'mindmap' | 'flowchart') => Promise<void>;
   loadMap: (mapId: string) => Promise<void>;
   deleteMap: (mapId: string) => Promise<void>;
   renameMap: (mapId: string, name: string) => Promise<void>;
   addNode: (parentId: string | null, content?: string) => void;
   addSibling: (nodeId: string) => void;
+  addFlowchartNode: (shape: FlowchartNodeData['shape'], position: { x: number; y: number }, content?: string) => void;
   updateNodeContent: (nodeId: string, content: string) => void;
   deleteNode: (nodeId: string) => void;
   moveNode: (nodeId: string, newPosition: { x: number; y: number }) => void;
   selectNode: (nodeId: string | null) => void;
   setEditingNode: (nodeId: string | null) => void;
+  selectEdge: (edgeId: string | null) => void;
+  updateEdgeLabel: (edgeId: string, label: string) => void;
   setDueDate: (nodeId: string, date: string | null) => void;
   connectNodes: (sourceId: string, targetId: string) => void;
+  connectFlowchartNodes: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => void;
   setNodes: (nodes: Node<MindMapNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
   layoutDirection: LayoutDirection;
@@ -105,6 +117,7 @@ interface MapStore {
   undo: () => void;
   redo: () => void;
   saveNow: () => Promise<void>;
+  getActiveMapType: () => 'mindmap' | 'flowchart';
 }
 
 function pushHistory(state: { past: HistoryEntry[]; nodes: Node<MindMapNodeData>[]; edges: Edge[] }): HistoryEntry[] {
@@ -124,6 +137,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   edges: [],
   selectedNodeId: null,
   editingNodeId: null,
+  selectedEdgeId: null,
   layoutDirection: 'vertical' as LayoutDirection,
   past: [],
   future: [],
@@ -131,21 +145,43 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   init: async () => {
     const maps = await getAllMaps();
-    set({ maps });
+    // Ensure backward compatibility: maps without type default to 'mindmap'
+    const normalizedMaps = maps.map((m) => ({
+      ...m,
+      type: m.type || 'mindmap',
+    })) as MindMapMeta[];
+    set({ maps: normalizedMaps });
   },
 
-  createMap: async (name: string) => {
+  getActiveMapType: () => {
+    const state = get();
+    const activeMap = state.maps.find((m) => m.id === state.activeMapId);
+    return activeMap?.type || 'mindmap';
+  },
+
+  createMap: async (name: string, type?: 'mindmap' | 'flowchart') => {
+    const mapType = type || 'mindmap';
     const id = nanoid();
     const now = new Date();
-    const meta: MindMapMeta = { id, name, createdAt: now, updatedAt: now };
+    const meta: MindMapMeta = { id, name, type: mapType, createdAt: now, updatedAt: now };
     await dbCreateMap(meta);
 
-    const rootNode: Node<MindMapNodeData> = {
-      id: nanoid(),
-      type: 'mindMapNode',
-      position: { x: 0, y: 0 },
-      data: { content: name, parentId: null },
-    };
+    let rootNode: Node<MindMapNodeData>;
+    if (mapType === 'flowchart') {
+      rootNode = {
+        id: nanoid(),
+        type: 'flowchartNode',
+        position: { x: 0, y: 0 },
+        data: { content: 'Start', parentId: null, shape: 'start-end' } as unknown as MindMapNodeData,
+      };
+    } else {
+      rootNode = {
+        id: nanoid(),
+        type: 'mindMapNode',
+        position: { x: 0, y: 0 },
+        data: { content: name, parentId: null },
+      };
+    }
 
     await saveMapData({
       mapId: id,
@@ -154,13 +190,18 @@ export const useMapStore = create<MapStore>((set, get) => ({
     });
 
     const maps = await getAllMaps();
+    const normalizedMaps = maps.map((m) => ({
+      ...m,
+      type: m.type || 'mindmap',
+    })) as MindMapMeta[];
     set({
-      maps,
+      maps: normalizedMaps,
       activeMapId: id,
       nodes: [rootNode],
       edges: [],
       selectedNodeId: rootNode.id,
       editingNodeId: null,
+      selectedEdgeId: null,
       past: [],
       future: [],
       dirty: false,
@@ -176,6 +217,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
         edges: deserializeEdges(data.edges),
         selectedNodeId: null,
         editingNodeId: null,
+        selectedEdgeId: null,
         past: [],
         future: [],
         dirty: false,
@@ -186,11 +228,15 @@ export const useMapStore = create<MapStore>((set, get) => ({
   deleteMap: async (mapId: string) => {
     await deleteMapFromDB(mapId);
     const maps = await getAllMaps();
+    const normalizedMaps = maps.map((m) => ({
+      ...m,
+      type: m.type || 'mindmap',
+    })) as MindMapMeta[];
     const state = get();
     if (state.activeMapId === mapId) {
-      set({ maps, activeMapId: null, nodes: [], edges: [], selectedNodeId: null, editingNodeId: null, past: [], future: [] });
+      set({ maps: normalizedMaps, activeMapId: null, nodes: [], edges: [], selectedNodeId: null, editingNodeId: null, selectedEdgeId: null, past: [], future: [] });
     } else {
-      set({ maps });
+      set({ maps: normalizedMaps });
     }
     // Rebuild tag index so deleted map's tags are removed
     useTagStore.getState().buildTagIndex();
@@ -199,7 +245,11 @@ export const useMapStore = create<MapStore>((set, get) => ({
   renameMap: async (mapId: string, name: string) => {
     await updateMapMeta(mapId, { name, updatedAt: new Date() });
     const maps = await getAllMaps();
-    set({ maps });
+    const normalizedMaps = maps.map((m) => ({
+      ...m,
+      type: m.type || 'mindmap',
+    })) as MindMapMeta[];
+    set({ maps: normalizedMaps });
   },
 
   addNode: (parentId: string | null, content?: string) => {
@@ -267,6 +317,39 @@ export const useMapStore = create<MapStore>((set, get) => ({
     });
   },
 
+  addFlowchartNode: (shape: FlowchartNodeData['shape'], position: { x: number; y: number }, content?: string) => {
+    const state = get();
+    const newPast = pushHistory(state);
+    const newId = nanoid();
+
+    const defaultContent: Record<FlowchartNodeData['shape'], string> = {
+      'start-end': 'Start / End',
+      'process': 'Process',
+      'decision': 'Decision?',
+      'io': 'Input / Output',
+    };
+
+    const newNode: Node<MindMapNodeData> = {
+      id: newId,
+      type: 'flowchartNode',
+      position,
+      data: {
+        content: content || defaultContent[shape],
+        parentId: null,
+        shape,
+      } as unknown as MindMapNodeData,
+    };
+
+    set({
+      nodes: [...state.nodes, newNode],
+      selectedNodeId: newId,
+      editingNodeId: newId,
+      past: newPast,
+      future: [],
+      dirty: true,
+    });
+  },
+
   updateNodeContent: (nodeId: string, content: string) => {
     const state = get();
     const newPast = pushHistory(state);
@@ -290,23 +373,44 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const state = get();
     const node = state.nodes.find((n) => n.id === nodeId);
     if (!node) return;
-    if (!node.data.parentId) return;
+
+    const mapType = get().getActiveMapType();
+    // For mindmaps, prevent deleting root. For flowcharts, allow deleting any node.
+    if (mapType === 'mindmap' && !node.data.parentId) return;
 
     const newPast = pushHistory(state);
-    const descendantIds = getDescendantIds(nodeId, state.nodes);
-    const idsToRemove = new Set([nodeId, ...descendantIds]);
-    const newNodes = state.nodes.filter((n) => !idsToRemove.has(n.id));
-    const newEdges = edgesFromNodes(newNodes);
 
-    set({
-      nodes: newNodes,
-      edges: newEdges,
-      selectedNodeId: null,
-      editingNodeId: null,
-      past: newPast,
-      future: [],
-      dirty: true,
-    });
+    if (mapType === 'flowchart') {
+      // For flowcharts, just remove the single node and any connected edges
+      const newNodes = state.nodes.filter((n) => n.id !== nodeId);
+      const newEdges = state.edges.filter(
+        (e) => e.source !== nodeId && e.target !== nodeId
+      );
+      set({
+        nodes: newNodes,
+        edges: newEdges,
+        selectedNodeId: null,
+        editingNodeId: null,
+        past: newPast,
+        future: [],
+        dirty: true,
+      });
+    } else {
+      const descendantIds = getDescendantIds(nodeId, state.nodes);
+      const idsToRemove = new Set([nodeId, ...descendantIds]);
+      const newNodes = state.nodes.filter((n) => !idsToRemove.has(n.id));
+      const newEdges = edgesFromNodes(newNodes);
+
+      set({
+        nodes: newNodes,
+        edges: newEdges,
+        selectedNodeId: null,
+        editingNodeId: null,
+        past: newPast,
+        future: [],
+        dirty: true,
+      });
+    }
   },
 
   connectNodes: (sourceId: string, targetId: string) => {
@@ -338,6 +442,65 @@ export const useMapStore = create<MapStore>((set, get) => ({
       future: [],
       dirty: true,
     });
+  },
+
+  connectFlowchartNodes: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => {
+    const state = get();
+    if (sourceId === targetId) return;
+
+    // Check if edge already exists between these two nodes
+    const existingEdge = state.edges.find(
+      (e) => e.source === sourceId && e.target === targetId
+    );
+    if (existingEdge) return;
+
+    const newPast = pushHistory(state);
+    const edgeId = `e-${sourceId}-${targetId}-${nanoid(6)}`;
+
+    // Check if source is a decision node
+    const sourceNode = state.nodes.find((n) => n.id === sourceId);
+    const isDecision = sourceNode?.data && (sourceNode.data as unknown as FlowchartNodeData).shape === 'decision';
+
+    // Count existing outgoing edges from the source (for decision label defaults)
+    const existingOutgoing = state.edges.filter((e) => e.source === sourceId).length;
+    let defaultLabel = '';
+    if (isDecision) {
+      if (existingOutgoing === 0) defaultLabel = 'Yes';
+      else if (existingOutgoing === 1) defaultLabel = 'No';
+    }
+
+    const newEdge: Edge = {
+      id: edgeId,
+      source: sourceId,
+      target: targetId,
+      sourceHandle: sourceHandle || undefined,
+      targetHandle: targetHandle || undefined,
+      type: 'smoothstep',
+      animated: true,
+      label: defaultLabel || undefined,
+      style: { stroke: '#64748b', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+    };
+
+    set({
+      edges: [...state.edges, newEdge],
+      past: newPast,
+      future: [],
+      dirty: true,
+    });
+  },
+
+  selectEdge: (edgeId: string | null) => {
+    set({ selectedEdgeId: edgeId });
+  },
+
+  updateEdgeLabel: (edgeId: string, label: string) => {
+    const state = get();
+    const newPast = pushHistory(state);
+    const newEdges = state.edges.map((e) =>
+      e.id === edgeId ? { ...e, label } : e
+    );
+    set({ edges: newEdges, past: newPast, future: [], dirty: true });
   },
 
   moveNode: (nodeId: string, newPosition: { x: number; y: number }) => {

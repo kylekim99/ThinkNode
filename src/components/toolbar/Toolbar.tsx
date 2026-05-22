@@ -1,17 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import { useReactFlow } from '@xyflow/react';
+import { convertMindmapToFlowchart } from '../../lib/flowchartConverter';
 import type { LayoutDirection } from '../../lib/layoutEngine';
 
 const layoutOptions: { value: LayoutDirection; label: string; icon: string }[] = [
-  { value: 'vertical', label: 'Top → Bottom', icon: '↓' },
-  { value: 'horizontal-lr', label: 'Left → Right', icon: '→' },
-  { value: 'horizontal-rl', label: 'Right → Left', icon: '←' },
+  { value: 'vertical', label: 'Top \u2192 Bottom', icon: '\u2193' },
+  { value: 'horizontal-lr', label: 'Left \u2192 Right', icon: '\u2192' },
+  { value: 'horizontal-rl', label: 'Right \u2192 Left', icon: '\u2190' },
 ];
 
 export function Toolbar() {
   const activeMapId = useMapStore((s) => s.activeMapId);
   const maps = useMapStore((s) => s.maps);
+  const nodes = useMapStore((s) => s.nodes);
+  const edges = useMapStore((s) => s.edges);
   const past = useMapStore((s) => s.past);
   const future = useMapStore((s) => s.future);
   const undo = useMapStore((s) => s.undo);
@@ -19,12 +22,17 @@ export function Toolbar() {
   const applyLayout = useMapStore((s) => s.applyLayout);
   const layoutDirection = useMapStore((s) => s.layoutDirection);
   const dirty = useMapStore((s) => s.dirty);
+  const createMap = useMapStore((s) => s.createMap);
+  const setNodes = useMapStore((s) => s.setNodes);
+  const setEdges = useMapStore((s) => s.setEdges);
+  const saveNow = useMapStore((s) => s.saveNow);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const activeMap = maps.find((m) => m.id === activeMapId);
+  const isFlowchart = activeMap?.type === 'flowchart';
 
   // Close menu on outside click
   useEffect(() => {
@@ -45,13 +53,36 @@ export function Toolbar() {
     setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 50);
   }
 
+  const handleConvertToFlowchart = useCallback(async () => {
+    if (!activeMapId || !activeMap || isFlowchart) return;
+    if (nodes.length < 2) {
+      alert('At least 2 nodes are required to convert to a flowchart.');
+      return;
+    }
+
+    try {
+      const result = convertMindmapToFlowchart(nodes, edges);
+      const name = `${activeMap.name} (Flowchart)`;
+      await createMap(name, 'flowchart');
+      // After createMap, the new map is active; replace its nodes/edges with converted ones
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      await saveNow();
+      setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Conversion failed';
+      alert(msg);
+    }
+  }, [activeMapId, activeMap, isFlowchart, nodes, edges, createMap, setNodes, setEdges, saveNow, fitView]);
+
   const currentOption = layoutOptions.find((o) => o.value === layoutDirection) || layoutOptions[0];
 
   return (
     <div className="h-12 min-h-[48px] bg-white border-b border-slate-200 flex items-center px-4 gap-2">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {activeMap ? (
-          <h3 className="text-sm font-semibold text-slate-700 truncate">
+          <h3 className="text-sm font-semibold text-slate-700 truncate flex items-center gap-1.5">
+            <span>{isFlowchart ? '\uD83D\uDCD0' : '\uD83E\uDDE0'}</span>
             {activeMap.name}
           </h3>
         ) : (
@@ -157,6 +188,23 @@ export function Toolbar() {
               </div>
             )}
           </div>
+
+          {/* Convert to Flowchart button (only for mindmaps with 2+ nodes) */}
+          {!isFlowchart && nodes.length >= 2 && (
+            <>
+              <div className="w-px h-5 bg-slate-200 mx-1" />
+              <button
+                onClick={handleConvertToFlowchart}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                title="Convert to Flowchart"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                To Flowchart
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

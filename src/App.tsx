@@ -3,6 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { Toolbar } from './components/toolbar/Toolbar';
 import { MindMapCanvas } from './components/canvas/MindMapCanvas';
+import { FlowchartCanvas } from './components/canvas/FlowchartCanvas';
 import { NodeProperties } from './components/panels/NodeProperties';
 import { SearchResults } from './components/panels/SearchResults';
 import { TimelineView } from './components/timeline/TimelineView';
@@ -16,6 +17,11 @@ function AppContent() {
   const init = useMapStore((s) => s.init);
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const viewMode = useTagStore((s) => s.viewMode);
+  const activeMapId = useMapStore((s) => s.activeMapId);
+  const maps = useMapStore((s) => s.maps);
+
+  const activeMap = maps.find((m) => m.id === activeMapId);
+  const isFlowchart = activeMap?.type === 'flowchart';
 
   useEffect(() => {
     init();
@@ -36,8 +42,8 @@ function AppContent() {
             <TimelineView />
           ) : (
             <>
-              <MindMapCanvas />
-              {selectedNodeId && <NodeProperties />}
+              {isFlowchart ? <FlowchartCanvas /> : <MindMapCanvas />}
+              {selectedNodeId && !isFlowchart && <NodeProperties />}
             </>
           )}
         </div>

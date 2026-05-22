@@ -10,10 +10,9 @@ export function Sidebar() {
   const viewMode = useTagStore((s) => s.viewMode);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
-
-  function handleCreate() {
-    const name = newName.trim() || 'Untitled Map';
-    createMap(name);
+  function handleCreate(type: 'mindmap' | 'flowchart') {
+    const name = newName.trim() || (type === 'flowchart' ? 'Untitled Flowchart' : 'Untitled Map');
+    createMap(name, type);
     setNewName('');
     setIsCreating(false);
   }
@@ -24,28 +23,42 @@ export function Sidebar() {
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-semibold text-slate-800 tracking-tight">ThinkNode</h2>
         </div>
-        <p className="text-xs text-slate-400">Mind Map Editor</p>
+        <p className="text-xs text-slate-400">Mind Map & Flowchart Editor</p>
       </div>
 
       <div className="px-3 py-2 border-b border-slate-100">
         {isCreating ? (
-          <div className="flex items-center gap-1.5">
+          <div className="space-y-2">
             <input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreate();
+                if (e.key === 'Enter') handleCreate('mindmap');
                 if (e.key === 'Escape') { setIsCreating(false); setNewName(''); }
               }}
-              placeholder="Map name..."
-              className="flex-1 text-sm border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-400"
+              placeholder="Name..."
+              className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-400"
             />
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleCreate('mindmap')}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                {'\uD83E\uDDE0'} Mind Map
+              </button>
+              <button
+                onClick={() => handleCreate('flowchart')}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors"
+              >
+                {'\uD83D\uDCD0'} Flowchart
+              </button>
+            </div>
             <button
-              onClick={handleCreate}
-              className="px-2.5 py-1.5 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              onClick={() => { setIsCreating(false); setNewName(''); }}
+              className="w-full text-xs text-slate-400 hover:text-slate-600 transition-colors py-1"
             >
-              Add
+              Cancel
             </button>
           </div>
         ) : (
