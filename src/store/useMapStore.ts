@@ -5,6 +5,7 @@ import type { MindMapMeta, MindMapNodeData, HistoryEntry, SerializedNode, Serial
 import { getAllMaps, createMap as dbCreateMap, updateMapMeta, deleteMapFromDB, getMapData, saveMapData } from '../db/database';
 import { computeLayout, type LayoutDirection } from '../lib/layoutEngine';
 import { parseTags } from '../lib/tagParser';
+import { useTagStore } from './useTagStore';
 
 function serializeNodes(nodes: Node<MindMapNodeData>[]): SerializedNode[] {
   return nodes.map((n) => ({
@@ -191,6 +192,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     } else {
       set({ maps });
     }
+    // Rebuild tag index so deleted map's tags are removed
+    useTagStore.getState().buildTagIndex();
   },
 
   renameMap: async (mapId: string, name: string) => {
