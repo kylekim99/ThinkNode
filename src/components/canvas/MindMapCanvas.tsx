@@ -29,23 +29,36 @@ export function MindMapCanvas() {
   const connectNodes = useMapStore((s) => s.connectNodes);
   const setNodes = useMapStore((s) => s.setNodes);
   const setEdges = useMapStore((s) => s.setEdges);
-  const { fitView } = useReactFlow();
+  const selectedNodeId = useMapStore((s) => s.selectedNodeId);
+  const { fitView, setCenter, getZoom } = useReactFlow();
   const prevNodesLengthRef = useRef(nodes.length);
   const prevNodePositionsRef = useRef('');
 
+  // When a new node is added, center the viewport on it
   useEffect(() => {
-    // Compute a simple hash of all node positions to detect layout changes
-    const posHash = nodes.map((n) => `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}`).join('|');
-    const lengthChanged = nodes.length !== prevNodesLengthRef.current;
-    const positionsChanged = posHash !== prevNodePositionsRef.current;
+    const nodeAdded = nodes.length > prevNodesLengthRef.current;
 
-    if (lengthChanged || (positionsChanged && prevNodePositionsRef.current !== '')) {
-      setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
+    if (nodeAdded && selectedNodeId) {
+      // New node was added — center on the selected (new) node
+      const newNode = nodes.find((n) => n.id === selectedNodeId);
+      if (newNode) {
+        const zoom = getZoom();
+        setTimeout(() => {
+          setCenter(newNode.position.x, newNode.position.y, { zoom: Math.max(zoom, 0.8), duration: 300 });
+        }, 60);
+      }
+    } else {
+      // Layout changed (e.g., auto-layout button) — fit all nodes
+      const posHash = nodes.map((n) => `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}`).join('|');
+      const positionsChanged = posHash !== prevNodePositionsRef.current;
+      if (positionsChanged && prevNodePositionsRef.current !== '' && !nodeAdded) {
+        setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
+      }
+      prevNodePositionsRef.current = posHash;
     }
 
     prevNodesLengthRef.current = nodes.length;
-    prevNodePositionsRef.current = posHash;
-  }, [nodes, fitView]);
+  }, [nodes, selectedNodeId, fitView, setCenter, getZoom]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
