@@ -1,5 +1,6 @@
-import { memo, useEffect, useRef, useState, useCallback } from 'react';
+import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { differenceInDays, parseISO, isToday, isPast, format } from 'date-fns';
 import type { MindMapNodeData } from '../../types/mindmap';
 import { useMapStore } from '../../store/useMapStore';
 
@@ -73,6 +74,24 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
 
   const isRoot = !data.parentId;
 
+  const dueDateBadge = useMemo(() => {
+    if (!data.dueDate) return null;
+    const dueDate = parseISO(data.dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = differenceInDays(dueDate, today);
+    let colorClass: string;
+    if (isToday(dueDate) || isPast(dueDate)) {
+      colorClass = 'bg-red-100 text-red-600';
+    } else if (diff <= 3) {
+      colorClass = 'bg-amber-100 text-amber-600';
+    } else {
+      colorClass = 'bg-green-100 text-green-600';
+    }
+    const formatted = format(dueDate, 'M/d');
+    return { colorClass, formatted };
+  }, [data.dueDate]);
+
   return (
     <div
       className={`
@@ -120,6 +139,14 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
               #{tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {dueDateBadge && (
+        <div className="flex justify-center mt-1.5">
+          <span className={`text-xs px-1.5 py-0.5 rounded-full leading-tight ${dueDateBadge.colorClass}`}>
+            {'\uD83D\uDCC5'} {dueDateBadge.formatted}
+          </span>
         </div>
       )}
     </div>

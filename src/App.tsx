@@ -5,6 +5,7 @@ import { Toolbar } from './components/toolbar/Toolbar';
 import { MindMapCanvas } from './components/canvas/MindMapCanvas';
 import { NodeProperties } from './components/panels/NodeProperties';
 import { SearchResults } from './components/panels/SearchResults';
+import { TimelineView } from './components/timeline/TimelineView';
 import { SearchOverlay } from './components/search/SearchOverlay';
 import { useMapStore } from './store/useMapStore';
 import { useTagStore } from './store/useTagStore';
@@ -31,6 +32,8 @@ function AppContent() {
         <div className="flex-1 flex min-h-0">
           {viewMode === 'search' ? (
             <SearchResults />
+          ) : viewMode === 'timeline' ? (
+            <TimelineView />
           ) : (
             <>
               <MindMapCanvas />

@@ -7,6 +7,7 @@ export function NodeProperties() {
   const deleteNode = useMapStore((s) => s.deleteNode);
   const addNode = useMapStore((s) => s.addNode);
   const setEditingNode = useMapStore((s) => s.setEditingNode);
+  const setDueDate = useMapStore((s) => s.setDueDate);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
@@ -49,6 +50,26 @@ export function NodeProperties() {
                 {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1.5">Due Date</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={selectedNode.data.dueDate || ''}
+              onChange={(e) => setDueDate(selectedNode.id, e.target.value || null)}
+              className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 text-slate-700"
+            />
+            {selectedNode.data.dueDate && (
+              <button
+                onClick={() => setDueDate(selectedNode.id, null)}
+                className="px-2 py-1.5 text-xs font-medium text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
 

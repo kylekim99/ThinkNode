@@ -95,6 +95,7 @@ interface MapStore {
   moveNode: (nodeId: string, newPosition: { x: number; y: number }) => void;
   selectNode: (nodeId: string | null) => void;
   setEditingNode: (nodeId: string | null) => void;
+  setDueDate: (nodeId: string, date: string | null) => void;
   connectNodes: (sourceId: string, targetId: string) => void;
   setNodes: (nodes: Node<MindMapNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -267,6 +268,15 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const tags = parseTags(content);
     const newNodes = state.nodes.map((n) =>
       n.id === nodeId ? { ...n, data: { ...n.data, content, tags } } : n
+    );
+    set({ nodes: newNodes, past: newPast, future: [], dirty: true });
+  },
+
+  setDueDate: (nodeId: string, date: string | null) => {
+    const state = get();
+    const newPast = pushHistory(state);
+    const newNodes = state.nodes.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, dueDate: date } } : n
     );
     set({ nodes: newNodes, past: newPast, future: [], dirty: true });
   },

@@ -20,7 +20,7 @@ interface TagStore {
   searchResults: TagEntry[];
 
   // View mode
-  viewMode: 'mindmap' | 'search' | 'merged';
+  viewMode: 'mindmap' | 'search' | 'merged' | 'timeline';
 
   // Search overlay
   searchOverlayOpen: boolean;
@@ -29,7 +29,7 @@ interface TagStore {
   buildTagIndex: () => Promise<void>;
   selectTag: (tag: string | null) => void;
   search: (query: string) => void;
-  setViewMode: (mode: 'mindmap' | 'search' | 'merged') => void;
+  setViewMode: (mode: 'mindmap' | 'search' | 'merged' | 'timeline') => void;
   setSearchOverlayOpen: (open: boolean) => void;
 }
 
@@ -119,7 +119,7 @@ export const useTagStore = create<TagStore>((set, get) => ({
     set({ searchQuery: query, searchResults: results });
   },
 
-  setViewMode: (mode: 'mindmap' | 'search' | 'merged') => {
+  setViewMode: (mode: 'mindmap' | 'search' | 'merged' | 'timeline') => {
     set({ viewMode: mode });
   },
 

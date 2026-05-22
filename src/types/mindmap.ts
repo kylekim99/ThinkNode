@@ -9,6 +9,7 @@ export interface MindMapNodeData extends Record<string, unknown> {
   content: string;
   parentId: string | null;
   tags?: string[];
+  dueDate?: string | null;  // ISO date string "YYYY-MM-DD"
 }
 
 export interface MapData {
