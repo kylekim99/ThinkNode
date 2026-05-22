@@ -13,7 +13,9 @@ import {
   applyEdgeChanges,
 } from '@xyflow/react';
 import { MindMapNode } from './MindMapNode';
+import { SnapGuideLines } from './SnapGuideLines';
 import { useMapStore } from '../../store/useMapStore';
+import { useSnapGuides } from '../../hooks/useSnapGuides';
 import type { MindMapNodeData } from '../../types/mindmap';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -31,6 +33,7 @@ export function MindMapCanvas() {
   const setEdges = useMapStore((s) => s.setEdges);
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const { fitView, setCenter, getZoom } = useReactFlow();
+  const { guides, handleNodeDrag, handleNodeDragStop, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
   const prevNodePositionsRef = useRef('');
 
@@ -62,10 +65,11 @@ export function MindMapCanvas() {
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      const updated = applyNodeChanges(changes, nodes) as Node<MindMapNodeData>[];
+      const snapped = snapNodeChanges(changes);
+      const updated = applyNodeChanges(snapped, nodes) as Node<MindMapNodeData>[];
       setNodes(updated);
     },
-    [nodes, setNodes]
+    [nodes, setNodes, snapNodeChanges]
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
@@ -86,8 +90,9 @@ export function MindMapCanvas() {
   const onNodeDragStop: NodeMouseHandler = useCallback(
     (_event, node) => {
       moveNode(node.id, node.position);
+      handleNodeDragStop();
     },
-    [moveNode]
+    [moveNode, handleNodeDragStop]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -125,6 +130,7 @@ export function MindMapCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDrag={handleNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
@@ -136,6 +142,7 @@ export function MindMapCanvas() {
         }}
         proOptions={{ hideAttribution: true }}
       >
+        <SnapGuideLines guides={guides} />
         <Background color="#e2e8f0" gap={20} size={1} />
         <Controls
           showInteractive={false}

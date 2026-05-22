@@ -15,7 +15,9 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import { FlowchartNode } from './FlowchartNode';
+import { SnapGuideLines } from './SnapGuideLines';
 import { useMapStore } from '../../store/useMapStore';
+import { useSnapGuides } from '../../hooks/useSnapGuides';
 import type { MindMapNodeData, FlowchartNodeData } from '../../types/mindmap';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -44,6 +46,7 @@ export function FlowchartCanvas() {
   const selectEdge = useMapStore((s) => s.selectEdge);
   const updateEdgeLabel = useMapStore((s) => s.updateEdgeLabel);
   const { fitView, setCenter, getZoom, getViewport } = useReactFlow();
+  const { guides, handleNodeDrag, handleNodeDragStop: clearGuides, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
 
   const [edgeLabelInput, setEdgeLabelInput] = useState('');
@@ -80,10 +83,11 @@ export function FlowchartCanvas() {
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
-      const updated = applyNodeChanges(changes, nodes) as Node<MindMapNodeData>[];
+      const snapped = snapNodeChanges(changes);
+      const updated = applyNodeChanges(snapped, nodes) as Node<MindMapNodeData>[];
       setNodes(updated);
     },
-    [nodes, setNodes]
+    [nodes, setNodes, snapNodeChanges]
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
@@ -105,8 +109,9 @@ export function FlowchartCanvas() {
   const onNodeDragStop: NodeMouseHandler = useCallback(
     (_event, node) => {
       moveNode(node.id, node.position);
+      clearGuides();
     },
-    [moveNode]
+    [moveNode, clearGuides]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -177,6 +182,7 @@ export function FlowchartCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDrag={handleNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
@@ -191,6 +197,7 @@ export function FlowchartCanvas() {
         }}
         proOptions={{ hideAttribution: true }}
       >
+        <SnapGuideLines guides={guides} />
         <Background color="#e2e8f0" gap={20} size={1} />
         <Controls
           showInteractive={false}
