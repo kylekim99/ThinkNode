@@ -31,13 +31,21 @@ export function MindMapCanvas() {
   const setEdges = useMapStore((s) => s.setEdges);
   const { fitView } = useReactFlow();
   const prevNodesLengthRef = useRef(nodes.length);
+  const prevNodePositionsRef = useRef('');
 
   useEffect(() => {
-    if (nodes.length !== prevNodesLengthRef.current) {
-      prevNodesLengthRef.current = nodes.length;
+    // Compute a simple hash of all node positions to detect layout changes
+    const posHash = nodes.map((n) => `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}`).join('|');
+    const lengthChanged = nodes.length !== prevNodesLengthRef.current;
+    const positionsChanged = posHash !== prevNodePositionsRef.current;
+
+    if (lengthChanged || (positionsChanged && prevNodePositionsRef.current !== '')) {
       setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
     }
-  }, [nodes.length, fitView]);
+
+    prevNodesLengthRef.current = nodes.length;
+    prevNodePositionsRef.current = posHash;
+  }, [nodes, fitView]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {

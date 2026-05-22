@@ -11,6 +11,7 @@ export function useKeyboardShortcuts() {
   const setEditingNode = useMapStore((s) => s.setEditingNode);
   const undo = useMapStore((s) => s.undo);
   const redo = useMapStore((s) => s.redo);
+  const applyLayout = useMapStore((s) => s.applyLayout);
   const setSearchOverlayOpen = useTagStore((s) => s.setSearchOverlayOpen);
   const searchOverlayOpen = useTagStore((s) => s.searchOverlayOpen);
 
@@ -20,6 +21,13 @@ export function useKeyboardShortcuts() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         setSearchOverlayOpen(!searchOverlayOpen);
+        return;
+      }
+
+      // Ctrl/Cmd+L: auto layout
+      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+        e.preventDefault();
+        applyLayout();
         return;
       }
 
@@ -65,5 +73,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, editingNodeId, addNode, addSibling, deleteNode, setEditingNode, undo, redo, setSearchOverlayOpen, searchOverlayOpen]);
+  }, [selectedNodeId, editingNodeId, addNode, addSibling, deleteNode, setEditingNode, undo, redo, applyLayout, setSearchOverlayOpen, searchOverlayOpen]);
 }

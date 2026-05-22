@@ -85,9 +85,12 @@ export function Toolbar() {
           <div className="w-px h-5 bg-slate-200 mx-1" />
 
           <button
-            onClick={applyLayout}
+            onClick={() => {
+              applyLayout();
+              setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 50);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-            title="Auto Layout"
+            title="Auto Layout (Ctrl+L)"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm4 8a1 1 0 011-1h6a1 1 0 011 1v2a1 1 0 01-1 1H9a1 1 0 01-1-1v-2zm2 8a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" />
