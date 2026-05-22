@@ -103,16 +103,23 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
       `}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors"
-      />
+      {/* 4-directional connection handles */}
+      <Handle type="target" position={Position.Top} id="top"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="source" position={Position.Top} id="top-src"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="target" position={Position.Bottom} id="bottom"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="source" position={Position.Bottom} id="bottom-src"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="target" position={Position.Left} id="left"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="source" position={Position.Left} id="left-src"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="target" position={Position.Right} id="right"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      <Handle type="source" position={Position.Right} id="right-src"
+        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
 
       {isEditing ? (
         <input

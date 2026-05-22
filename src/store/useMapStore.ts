@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import type { Node, Edge } from '@xyflow/react';
 import type { MindMapMeta, MindMapNodeData, HistoryEntry, SerializedNode, SerializedEdge } from '../types/mindmap';
 import { getAllMaps, createMap as dbCreateMap, updateMapMeta, deleteMapFromDB, getMapData, saveMapData } from '../db/database';
-import { computeLayout } from '../lib/layoutEngine';
+import { computeLayout, type LayoutDirection } from '../lib/layoutEngine';
 import { parseTags } from '../lib/tagParser';
 
 function serializeNodes(nodes: Node<MindMapNodeData>[]): SerializedNode[] {
@@ -99,7 +99,8 @@ interface MapStore {
   connectNodes: (sourceId: string, targetId: string) => void;
   setNodes: (nodes: Node<MindMapNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
-  applyLayout: () => void;
+  layoutDirection: LayoutDirection;
+  applyLayout: (direction?: LayoutDirection) => void;
   undo: () => void;
   redo: () => void;
   saveNow: () => Promise<void>;
@@ -122,6 +123,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   edges: [],
   selectedNodeId: null,
   editingNodeId: null,
+  layoutDirection: 'vertical' as LayoutDirection,
   past: [],
   future: [],
   dirty: false,
@@ -359,16 +361,17 @@ export const useMapStore = create<MapStore>((set, get) => ({
     set({ edges, dirty: true });
   },
 
-  applyLayout: () => {
+  applyLayout: (direction?: LayoutDirection) => {
     const state = get();
+    const dir = direction || state.layoutDirection;
     const newPast = pushHistory(state);
     const serialized = serializeNodes(state.nodes);
-    const positions = computeLayout(serialized);
+    const positions = computeLayout(serialized, dir);
     const newNodes = state.nodes.map((n) => {
       const pos = positions.get(n.id);
       return pos ? { ...n, position: pos } : n;
     });
-    set({ nodes: newNodes, past: newPast, future: [], dirty: true });
+    set({ nodes: newNodes, layoutDirection: dir, past: newPast, future: [], dirty: true });
   },
 
   undo: () => {

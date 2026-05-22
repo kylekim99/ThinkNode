@@ -1,5 +1,13 @@
+import { useState, useRef, useEffect } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import { useReactFlow } from '@xyflow/react';
+import type { LayoutDirection } from '../../lib/layoutEngine';
+
+const layoutOptions: { value: LayoutDirection; label: string; icon: string }[] = [
+  { value: 'vertical', label: 'Top → Bottom', icon: '↓' },
+  { value: 'horizontal-lr', label: 'Left → Right', icon: '→' },
+  { value: 'horizontal-rl', label: 'Right → Left', icon: '←' },
+];
 
 export function Toolbar() {
   const activeMapId = useMapStore((s) => s.activeMapId);
@@ -9,10 +17,35 @@ export function Toolbar() {
   const undo = useMapStore((s) => s.undo);
   const redo = useMapStore((s) => s.redo);
   const applyLayout = useMapStore((s) => s.applyLayout);
+  const layoutDirection = useMapStore((s) => s.layoutDirection);
   const dirty = useMapStore((s) => s.dirty);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const activeMap = maps.find((m) => m.id === activeMapId);
+
+  // Close menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowLayoutMenu(false);
+      }
+    }
+    if (showLayoutMenu) {
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }
+  }, [showLayoutMenu]);
+
+  function handleLayoutSelect(direction: LayoutDirection) {
+    applyLayout(direction);
+    setShowLayoutMenu(false);
+    setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 50);
+  }
+
+  const currentOption = layoutOptions.find((o) => o.value === layoutDirection) || layoutOptions[0];
 
   return (
     <div className="h-12 min-h-[48px] bg-white border-b border-slate-200 flex items-center px-4 gap-2">
@@ -84,19 +117,46 @@ export function Toolbar() {
 
           <div className="w-px h-5 bg-slate-200 mx-1" />
 
-          <button
-            onClick={() => {
-              applyLayout();
-              setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 50);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-            title="Auto Layout (Ctrl+L)"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm4 8a1 1 0 011-1h6a1 1 0 011 1v2a1 1 0 01-1 1H9a1 1 0 01-1-1v-2zm2 8a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" />
-            </svg>
-            Layout
-          </button>
+          {/* Layout button with dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+              title="Auto Layout (Ctrl+L)"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm4 8a1 1 0 011-1h6a1 1 0 011 1v2a1 1 0 01-1 1H9a1 1 0 01-1-1v-2zm2 8a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" />
+              </svg>
+              Layout {currentOption.icon}
+              <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showLayoutMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1">
+                {layoutOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleLayoutSelect(option.value)}
+                    className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors ${
+                      layoutDirection === option.value
+                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-5 text-center">{option.icon}</span>
+                    {option.label}
+                    {layoutDirection === option.value && (
+                      <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
