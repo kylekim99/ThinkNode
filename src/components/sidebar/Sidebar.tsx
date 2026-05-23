@@ -3,6 +3,7 @@ import { useMapStore } from '../../store/useMapStore';
 import { useTagStore } from '../../store/useTagStore';
 import { MapList } from './MapList';
 import { TagExplorer } from './TagExplorer';
+import { SyncStatus } from '../sync/SyncStatus';
 
 export function Sidebar() {
   const createMap = useMapStore((s) => s.createMap);
@@ -92,6 +93,8 @@ export function Sidebar() {
           Timeline
         </button>
       </div>
+
+      <SyncStatus />
     </div>
   );
 }

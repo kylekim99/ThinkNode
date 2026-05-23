@@ -8,6 +8,7 @@ import { NodeProperties } from './components/panels/NodeProperties';
 import { SearchResults } from './components/panels/SearchResults';
 import { TimelineView } from './components/timeline/TimelineView';
 import { SearchOverlay } from './components/search/SearchOverlay';
+import { SyncLoginDialog } from './components/sync/SyncLoginDialog';
 import { useMapStore } from './store/useMapStore';
 import { useTagStore } from './store/useTagStore';
 import { useThemeStore } from './store/useThemeStore';
@@ -54,6 +55,7 @@ function AppContent() {
         </div>
       </div>
       <SearchOverlay />
+      <SyncLoginDialog />
     </div>
   );
 }
