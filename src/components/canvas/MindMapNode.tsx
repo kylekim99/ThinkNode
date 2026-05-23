@@ -3,6 +3,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { differenceInDays, parseISO, isToday, isPast, format } from 'date-fns';
 import type { MindMapNodeData } from '../../types/mindmap';
 import { useMapStore } from '../../store/useMapStore';
+import { useThemeStore, colorfulBorders } from '../../store/useThemeStore';
 
 type MindMapNodeProps = NodeProps & { data: MindMapNodeData };
 
@@ -73,6 +74,42 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   );
 
   const isRoot = !data.parentId;
+  const theme = useThemeStore((s) => s.theme);
+  const themeConfig = useThemeStore((s) => s.getConfig());
+
+  // Determine node colors based on theme and customColor
+  const nodeStyle = useMemo(() => {
+    const customColor = data.customColor;
+    if (customColor) {
+      return {
+        backgroundColor: customColor,
+        borderColor: selected ? themeConfig.node.selectedBorder : customColor,
+        color: themeConfig.node.text,
+      };
+    }
+    if (isRoot) {
+      return {
+        backgroundColor: themeConfig.node.rootBg,
+        borderColor: selected ? themeConfig.node.selectedBorder : themeConfig.node.rootBorder,
+        color: themeConfig.node.text,
+      };
+    }
+    if (theme === 'colorful') {
+      // Use rotating colorful borders based on node id hash
+      const hash = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const borderColor = colorfulBorders[hash % colorfulBorders.length];
+      return {
+        backgroundColor: themeConfig.node.bg,
+        borderColor: selected ? themeConfig.node.selectedBorder : borderColor,
+        color: themeConfig.node.text,
+      };
+    }
+    return {
+      backgroundColor: themeConfig.node.bg,
+      borderColor: selected ? themeConfig.node.selectedBorder : themeConfig.node.border,
+      color: themeConfig.node.text,
+    };
+  }, [data.customColor, isRoot, selected, theme, themeConfig, id]);
 
   const dueDateBadge = useMemo(() => {
     if (!data.dueDate) return null;
@@ -94,13 +131,12 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
 
   return (
     <div
-      className={`
-        min-w-[120px] max-w-[260px] px-4 py-2 rounded-lg
-        border-2 transition-all duration-150
-        ${selected ? 'border-blue-500 shadow-lg shadow-blue-500/20' : 'border-slate-200 shadow-md'}
-        ${isRoot ? 'bg-blue-50 border-blue-300' : 'bg-white'}
-        hover:shadow-lg cursor-pointer
-      `}
+      className="min-w-[120px] max-w-[260px] px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer"
+      style={{
+        backgroundColor: nodeStyle.backgroundColor,
+        borderColor: nodeStyle.borderColor,
+        boxShadow: selected ? `0 10px 15px -3px ${nodeStyle.borderColor}33` : '0 4px 6px -1px rgba(0,0,0,0.1)',
+      }}
       onDoubleClick={handleDoubleClick}
     >
       {/* 4-directional connection handles */}
@@ -128,10 +164,11 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={commitEdit}
           onKeyDown={handleKeyDown}
-          className="w-full bg-transparent outline-none text-center text-sm font-medium text-slate-800 border-b-2 border-blue-400"
+          className="w-full bg-transparent outline-none text-center text-sm font-medium border-b-2 border-blue-400"
+          style={{ color: nodeStyle.color }}
         />
       ) : (
-        <div className="text-center text-sm font-medium text-slate-800 select-none truncate">
+        <div className="text-center text-sm font-medium select-none truncate" style={{ color: nodeStyle.color }}>
           {data.content}
         </div>
       )}

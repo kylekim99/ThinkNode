@@ -6,6 +6,7 @@ import type { MindMapMeta, MindMapNodeData, FlowchartNodeData, HistoryEntry, Ser
 import { getAllMaps, createMap as dbCreateMap, updateMapMeta, deleteMapFromDB, getMapData, saveMapData } from '../db/database';
 import { computeLayout, type LayoutDirection } from '../lib/layoutEngine';
 import { parseTags } from '../lib/tagParser';
+import { exportMapToJSON, parseImportFile } from '../lib/exportImport';
 import { useTagStore } from './useTagStore';
 
 function serializeNodes(nodes: Node<MindMapNodeData>[]): SerializedNode[] {
@@ -114,6 +115,9 @@ interface MapStore {
   setEdges: (edges: Edge[]) => void;
   layoutDirection: LayoutDirection;
   applyLayout: (direction?: LayoutDirection) => void;
+  setNodeColor: (nodeId: string, color: string | null) => void;
+  exportCurrentMap: () => void;
+  importMap: (file: File) => Promise<void>;
   undo: () => void;
   redo: () => void;
   saveNow: () => Promise<void>;
@@ -525,6 +529,71 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   setEdges: (edges: Edge[]) => {
     set({ edges, dirty: true });
+  },
+
+  setNodeColor: (nodeId: string, color: string | null) => {
+    const state = get();
+    const newPast = pushHistory(state);
+    const newNodes = state.nodes.map((n) => {
+      if (n.id !== nodeId) return n;
+      const newData = { ...n.data };
+      if (color) {
+        newData.customColor = color;
+      } else {
+        delete newData.customColor;
+      }
+      return { ...n, data: newData };
+    });
+    set({ nodes: newNodes, past: newPast, future: [], dirty: true });
+  },
+
+  exportCurrentMap: () => {
+    const state = get();
+    if (!state.activeMapId) return;
+    const activeMap = state.maps.find((m) => m.id === state.activeMapId);
+    if (!activeMap) return;
+    exportMapToJSON(
+      activeMap,
+      serializeNodes(state.nodes),
+      serializeEdges(state.edges)
+    );
+  },
+
+  importMap: async (file: File) => {
+    const parsed = await parseImportFile(file);
+    const id = nanoid();
+    const now = new Date();
+    const meta: MindMapMeta = {
+      id,
+      name: parsed.map.name,
+      type: parsed.map.type,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await dbCreateMap(meta);
+    await saveMapData({
+      mapId: id,
+      nodes: parsed.map.nodes,
+      edges: parsed.map.edges,
+    });
+    const maps = await getAllMaps();
+    const normalizedMaps = maps.map((m) => ({
+      ...m,
+      type: m.type || 'mindmap',
+    })) as MindMapMeta[];
+    set({
+      maps: normalizedMaps,
+      activeMapId: id,
+      nodes: deserializeNodes(parsed.map.nodes),
+      edges: deserializeEdges(parsed.map.edges),
+      selectedNodeId: null,
+      editingNodeId: null,
+      selectedEdgeId: null,
+      past: [],
+      future: [],
+      dirty: false,
+    });
+    useTagStore.getState().buildTagIndex();
   },
 
   applyLayout: (direction?: LayoutDirection) => {

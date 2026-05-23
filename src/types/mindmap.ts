@@ -11,6 +11,7 @@ export interface MindMapNodeData extends Record<string, unknown> {
   parentId: string | null;
   tags?: string[];
   dueDate?: string | null;  // ISO date string "YYYY-MM-DD"
+  customColor?: string;     // hex color for custom node bg
 }
 
 export interface MapData {

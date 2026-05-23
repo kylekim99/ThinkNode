@@ -10,6 +10,7 @@ import { TimelineView } from './components/timeline/TimelineView';
 import { SearchOverlay } from './components/search/SearchOverlay';
 import { useMapStore } from './store/useMapStore';
 import { useTagStore } from './store/useTagStore';
+import { useThemeStore } from './store/useThemeStore';
 import { useAutoSave } from './hooks/useAutoSave';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -22,6 +23,7 @@ function AppContent() {
 
   const activeMap = maps.find((m) => m.id === activeMapId);
   const isFlowchart = activeMap?.type === 'flowchart';
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     init();
@@ -30,8 +32,11 @@ function AppContent() {
   useAutoSave();
   useKeyboardShortcuts();
 
+  // Keep theme variable in scope for reactivity
+  void theme;
+
   return (
-    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen w-screen overflow-hidden" style={{ backgroundColor: 'var(--canvas-bg)' }}>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Toolbar />

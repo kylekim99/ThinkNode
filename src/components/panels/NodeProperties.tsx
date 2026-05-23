@@ -1,5 +1,16 @@
 import { useMapStore } from '../../store/useMapStore';
 
+const colorPresets = [
+  { name: 'Red', color: '#fecaca' },
+  { name: 'Blue', color: '#bfdbfe' },
+  { name: 'Green', color: '#bbf7d0' },
+  { name: 'Purple', color: '#ddd6fe' },
+  { name: 'Orange', color: '#fed7aa' },
+  { name: 'Pink', color: '#fbcfe8' },
+  { name: 'Yellow', color: '#fef08a' },
+  { name: 'Gray', color: '#e2e8f0' },
+];
+
 export function NodeProperties() {
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const nodes = useMapStore((s) => s.nodes);
@@ -8,6 +19,7 @@ export function NodeProperties() {
   const addNode = useMapStore((s) => s.addNode);
   const setEditingNode = useMapStore((s) => s.setEditingNode);
   const setDueDate = useMapStore((s) => s.setDueDate);
+  const setNodeColor = useMapStore((s) => s.setNodeColor);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
@@ -17,36 +29,37 @@ export function NodeProperties() {
   const childCount = nodes.filter((n) => n.data.parentId === selectedNode.id).length;
 
   return (
-    <div className="w-[280px] min-w-[280px] h-full bg-white border-l border-slate-200 flex flex-col">
-      <div className="px-4 py-3 border-b border-slate-200">
-        <h3 className="text-sm font-semibold text-slate-800">Node Properties</h3>
+    <div className="w-[280px] min-w-[280px] h-full border-l flex flex-col" style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}>
+      <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--sidebar-text)' }}>Node Properties</h3>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Content</label>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)', opacity: 0.6 }}>Content</label>
           <textarea
             value={selectedNode.data.content}
             onChange={(e) => updateNodeContent(selectedNode.id, e.target.value)}
-            className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none"
+            className="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none"
+            style={{ borderColor: 'var(--node-border)', backgroundColor: 'var(--node-bg)', color: 'var(--node-text)' }}
             rows={3}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Info</label>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)', opacity: 0.6 }}>Info</label>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-400">Type</span>
-              <span className="text-slate-700 font-medium">{isRoot ? 'Root' : 'Child'}</span>
+              <span style={{ color: 'var(--sidebar-text)', opacity: 0.5 }}>Type</span>
+              <span className="font-medium" style={{ color: 'var(--sidebar-text)' }}>{isRoot ? 'Root' : 'Child'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Children</span>
-              <span className="text-slate-700 font-medium">{childCount}</span>
+              <span style={{ color: 'var(--sidebar-text)', opacity: 0.5 }}>Children</span>
+              <span className="font-medium" style={{ color: 'var(--sidebar-text)' }}>{childCount}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Position</span>
-              <span className="text-slate-700 font-mono text-xs">
+              <span style={{ color: 'var(--sidebar-text)', opacity: 0.5 }}>Position</span>
+              <span className="font-mono text-xs" style={{ color: 'var(--sidebar-text)' }}>
                 {Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)}
               </span>
             </div>
@@ -54,18 +67,49 @@ export function NodeProperties() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Due Date</label>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)', opacity: 0.6 }}>Node Color</label>
+          <div className="flex flex-wrap gap-1.5">
+            {colorPresets.map((preset) => (
+              <button
+                key={preset.color}
+                onClick={() => setNodeColor(selectedNode.id, preset.color)}
+                className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
+                  selectedNode.data.customColor === preset.color ? 'ring-2 ring-blue-400 ring-offset-1' : ''
+                }`}
+                style={{
+                  backgroundColor: preset.color,
+                  borderColor: selectedNode.data.customColor === preset.color ? '#3b82f6' : '#94a3b8',
+                }}
+                title={preset.name}
+              />
+            ))}
+            {selectedNode.data.customColor && (
+              <button
+                onClick={() => setNodeColor(selectedNode.id, null)}
+                className="px-2 py-0.5 text-xs font-medium rounded-lg border transition-colors hover:bg-slate-50"
+                style={{ color: 'var(--sidebar-text)', borderColor: 'var(--node-border)' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)', opacity: 0.6 }}>Due Date</label>
           <div className="flex items-center gap-2">
             <input
               type="date"
               value={selectedNode.data.dueDate || ''}
               onChange={(e) => setDueDate(selectedNode.id, e.target.value || null)}
-              className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 text-slate-700"
+              className="flex-1 text-sm border rounded-lg px-3 py-1.5 outline-none focus:border-blue-400"
+              style={{ borderColor: 'var(--node-border)', backgroundColor: 'var(--node-bg)', color: 'var(--node-text)' }}
             />
             {selectedNode.data.dueDate && (
               <button
                 onClick={() => setDueDate(selectedNode.id, null)}
-                className="px-2 py-1.5 text-xs font-medium text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-2 py-1.5 text-xs font-medium border rounded-lg transition-colors"
+                style={{ color: 'var(--sidebar-text)', borderColor: 'var(--node-border)' }}
               >
                 Clear
               </button>
@@ -74,12 +118,13 @@ export function NodeProperties() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Actions</label>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--sidebar-text)', opacity: 0.6 }}>Actions</label>
           <button
             onClick={() => {
               setEditingNode(selectedNode.id);
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors"
+            style={{ color: 'var(--sidebar-text)', borderColor: 'var(--node-border)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -88,7 +133,8 @@ export function NodeProperties() {
           </button>
           <button
             onClick={() => addNode(selectedNode.id)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors"
+            style={{ color: 'var(--sidebar-text)', borderColor: 'var(--node-border)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -109,7 +155,7 @@ export function NodeProperties() {
         </div>
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
+      <div className="px-4 py-3 border-t text-xs" style={{ borderColor: 'var(--sidebar-border)', color: 'var(--sidebar-text)', opacity: 0.5 }}>
         ID: {selectedNode.id.slice(0, 12)}...
       </div>
     </div>

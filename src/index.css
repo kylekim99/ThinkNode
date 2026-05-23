@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+:root {
+  --canvas-bg: #f8fafc;
+  --canvas-dot: #e2e8f0;
+  --node-bg: #ffffff;
+  --node-border: #e2e8f0;
+  --node-text: #1e293b;
+  --node-selected-border: #3b82f6;
+  --node-root-bg: #eff6ff;
+  --node-root-border: #93c5fd;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
+  --sidebar-text: #1e293b;
+  --sidebar-hover: #f1f5f9;
+  --toolbar-bg: #ffffff;
+  --toolbar-border: #e2e8f0;
+  --toolbar-text: #334155;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -12,4 +30,28 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+}
+
+/* Dark theme overrides for React Flow controls and minimap */
+[data-theme="dark"] .react-flow__controls button {
+  background-color: #2a2a3c !important;
+  border-color: #3a3a4c !important;
+  fill: #cbd5e1 !important;
+}
+[data-theme="dark"] .react-flow__controls button:hover {
+  background-color: #3a3a4c !important;
+}
+[data-theme="dark"] .react-flow__controls {
+  background-color: #2a2a3c !important;
+  border-color: #3a3a4c !important;
+}
+[data-theme="dark"] .react-flow__minimap {
+  background-color: #1a1a2e !important;
+  border-color: #3a3a4c !important;
+}
+[data-theme="dark"] .react-flow__edge-textbg {
+  fill: #2a2a3c !important;
+}
+[data-theme="dark"] .react-flow__edge-text {
+  fill: #e2e8f0 !important;
 }

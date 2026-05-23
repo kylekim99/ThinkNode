@@ -17,6 +17,7 @@ import {
 import { FlowchartNode } from './FlowchartNode';
 import { SnapGuideLines } from './SnapGuideLines';
 import { useMapStore } from '../../store/useMapStore';
+import { useThemeStore } from '../../store/useThemeStore';
 import { useSnapGuides } from '../../hooks/useSnapGuides';
 import type { MindMapNodeData, FlowchartNodeData } from '../../types/mindmap';
 import type { Node, Edge } from '@xyflow/react';
@@ -45,6 +46,7 @@ export function FlowchartCanvas() {
   const selectedEdgeId = useMapStore((s) => s.selectedEdgeId);
   const selectEdge = useMapStore((s) => s.selectEdge);
   const updateEdgeLabel = useMapStore((s) => s.updateEdgeLabel);
+  const themeConfig = useThemeStore((s) => s.getConfig());
   const { fitView, setCenter, getZoom, getViewport } = useReactFlow();
   const { guides, handleNodeDrag, handleNodeDragStop: clearGuides, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
@@ -163,7 +165,7 @@ export function FlowchartCanvas() {
 
   if (!activeMapId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50 text-slate-400">
+      <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: 'var(--canvas-bg)', color: 'var(--node-text)', opacity: 0.5 }}>
         <div className="text-center">
           <div className="text-5xl mb-4">&#128065;</div>
           <p className="text-lg font-medium">Select or create a flowchart</p>
@@ -174,7 +176,7 @@ export function FlowchartCanvas() {
   }
 
   return (
-    <div className="flex-1 h-full relative">
+    <div className="flex-1 h-full relative" style={{ backgroundColor: themeConfig.canvas.bg }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -196,24 +198,27 @@ export function FlowchartCanvas() {
           markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
         }}
         proOptions={{ hideAttribution: true }}
+        style={{ backgroundColor: themeConfig.canvas.bg }}
       >
         <SnapGuideLines guides={guides} />
-        <Background color="#e2e8f0" gap={20} size={1} />
+        <Background color={themeConfig.canvas.dotColor} gap={20} size={1} />
         <Controls
           showInteractive={false}
-          className="!bg-white !border-slate-200 !shadow-md [&>button]:!border-slate-200 [&>button]:!bg-white [&>button:hover]:!bg-slate-50"
+          className="!shadow-md"
+          style={{ backgroundColor: themeConfig.toolbar.bg, borderColor: themeConfig.toolbar.border }}
         />
         <MiniMap
-          nodeStrokeColor="#64748b"
-          nodeColor="#e2e8f0"
-          maskColor="rgba(241, 245, 249, 0.7)"
-          className="!bg-white !border-slate-200 !shadow-md"
+          nodeStrokeColor={themeConfig.node.border}
+          nodeColor={themeConfig.node.bg}
+          maskColor={themeConfig.name === 'dark' ? 'rgba(26, 26, 46, 0.7)' : 'rgba(241, 245, 249, 0.7)'}
+          className="!shadow-md"
+          style={{ backgroundColor: themeConfig.sidebar.bg, borderColor: themeConfig.sidebar.border }}
         />
       </ReactFlow>
 
       {/* Shape Palette */}
-      <div className="absolute top-4 left-4 bg-white border border-slate-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 z-10">
-        <div className="px-2 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+      <div className="absolute top-4 left-4 border rounded-xl shadow-lg p-2 flex flex-col gap-1 z-10" style={{ backgroundColor: 'var(--toolbar-bg)', borderColor: 'var(--toolbar-border)' }}>
+        <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--toolbar-text)', opacity: 0.7 }}>
           Shapes
         </div>
         {shapes.map((s) => (
@@ -235,8 +240,8 @@ export function FlowchartCanvas() {
 
       {/* Edge Label Editor */}
       {showEdgeLabelEditor && selectedEdgeId && (
-        <div className="absolute top-4 right-4 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-10 w-64">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="absolute top-4 right-4 border rounded-xl shadow-lg p-4 z-10 w-64" style={{ backgroundColor: 'var(--toolbar-bg)', borderColor: 'var(--toolbar-border)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--toolbar-text)', opacity: 0.7 }}>
             Edge Label
           </div>
           <input

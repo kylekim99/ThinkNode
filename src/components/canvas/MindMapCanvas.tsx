@@ -15,6 +15,7 @@ import {
 import { MindMapNode } from './MindMapNode';
 import { SnapGuideLines } from './SnapGuideLines';
 import { useMapStore } from '../../store/useMapStore';
+import { useThemeStore } from '../../store/useThemeStore';
 import { useSnapGuides } from '../../hooks/useSnapGuides';
 import type { MindMapNodeData } from '../../types/mindmap';
 import type { Node, Edge } from '@xyflow/react';
@@ -32,6 +33,7 @@ export function MindMapCanvas() {
   const setNodes = useMapStore((s) => s.setNodes);
   const setEdges = useMapStore((s) => s.setEdges);
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
+  const themeConfig = useThemeStore((s) => s.getConfig());
   const { fitView, setCenter, getZoom } = useReactFlow();
   const { guides, handleNodeDrag, handleNodeDragStop, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
@@ -111,7 +113,7 @@ export function MindMapCanvas() {
 
   if (!activeMapId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50 text-slate-400">
+      <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: 'var(--canvas-bg)', color: 'var(--node-text)', opacity: 0.5 }}>
         <div className="text-center">
           <div className="text-5xl mb-4">&#128065;</div>
           <p className="text-lg font-medium">Select or create a mind map</p>
@@ -122,7 +124,7 @@ export function MindMapCanvas() {
   }
 
   return (
-    <div className="flex-1 h-full">
+    <div className="flex-1 h-full" style={{ backgroundColor: themeConfig.canvas.bg }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -138,21 +140,24 @@ export function MindMapCanvas() {
         fitViewOptions={{ padding: 0.3 }}
         defaultEdgeOptions={{
           type: 'smoothstep',
-          style: { stroke: '#94a3b8', strokeWidth: 2 },
+          style: { stroke: themeConfig.name === 'dark' ? '#64748b' : '#94a3b8', strokeWidth: 2 },
         }}
         proOptions={{ hideAttribution: true }}
+        style={{ backgroundColor: themeConfig.canvas.bg }}
       >
         <SnapGuideLines guides={guides} />
-        <Background color="#e2e8f0" gap={20} size={1} />
+        <Background color={themeConfig.canvas.dotColor} gap={20} size={1} />
         <Controls
           showInteractive={false}
-          className="!bg-white !border-slate-200 !shadow-md [&>button]:!border-slate-200 [&>button]:!bg-white [&>button:hover]:!bg-slate-50"
+          className="!shadow-md"
+          style={{ backgroundColor: themeConfig.toolbar.bg, borderColor: themeConfig.toolbar.border }}
         />
         <MiniMap
-          nodeStrokeColor="#64748b"
-          nodeColor="#e2e8f0"
-          maskColor="rgba(241, 245, 249, 0.7)"
-          className="!bg-white !border-slate-200 !shadow-md"
+          nodeStrokeColor={themeConfig.node.border}
+          nodeColor={themeConfig.node.bg}
+          maskColor={themeConfig.name === 'dark' ? 'rgba(26, 26, 46, 0.7)' : 'rgba(241, 245, 249, 0.7)'}
+          className="!shadow-md"
+          style={{ backgroundColor: themeConfig.sidebar.bg, borderColor: themeConfig.sidebar.border }}
         />
       </ReactFlow>
     </div>

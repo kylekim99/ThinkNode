@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMapStore } from '../../store/useMapStore';
+import { useThemeStore, type ThemeName } from '../../store/useThemeStore';
 import { useReactFlow } from '@xyflow/react';
 import { convertMindmapToFlowchart } from '../../lib/flowchartConverter';
 import type { LayoutDirection } from '../../lib/layoutEngine';
@@ -8,6 +9,12 @@ const layoutOptions: { value: LayoutDirection; label: string; icon: string }[] =
   { value: 'vertical', label: 'Top \u2192 Bottom', icon: '\u2193' },
   { value: 'horizontal-lr', label: 'Left \u2192 Right', icon: '\u2192' },
   { value: 'horizontal-rl', label: 'Right \u2192 Left', icon: '\u2190' },
+];
+
+const themeOptions: { value: ThemeName; label: string; color: string }[] = [
+  { value: 'light', label: 'Light', color: '#f8fafc' },
+  { value: 'dark', label: 'Dark', color: '#1e1e2e' },
+  { value: 'colorful', label: 'Colorful', color: '#8b5cf6' },
 ];
 
 export function Toolbar() {
@@ -26,10 +33,15 @@ export function Toolbar() {
   const setNodes = useMapStore((s) => s.setNodes);
   const setEdges = useMapStore((s) => s.setEdges);
   const saveNow = useMapStore((s) => s.saveNow);
+  const exportCurrentMap = useMapStore((s) => s.exportCurrentMap);
+  const importMap = useMapStore((s) => s.importMap);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const { fitView, zoomIn, zoomOut } = useReactFlow();
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeMap = maps.find((m) => m.id === activeMapId);
   const isFlowchart = activeMap?.type === 'flowchart';
@@ -75,18 +87,39 @@ export function Toolbar() {
     }
   }, [activeMapId, activeMap, isFlowchart, nodes, edges, createMap, setNodes, setEdges, saveNow, fitView]);
 
+  const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await importMap(file);
+      setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Import failed';
+      alert(msg);
+    }
+    // Reset file input so same file can be re-imported
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [importMap, fitView]);
+
   const currentOption = layoutOptions.find((o) => o.value === layoutDirection) || layoutOptions[0];
 
   return (
-    <div className="h-12 min-h-[48px] bg-white border-b border-slate-200 flex items-center px-4 gap-2">
+    <div className="h-12 min-h-[48px] border-b flex items-center px-4 gap-2" style={{ backgroundColor: 'var(--toolbar-bg)', borderColor: 'var(--toolbar-border)' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={handleImport}
+      />
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {activeMap ? (
-          <h3 className="text-sm font-semibold text-slate-700 truncate flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--toolbar-text)' }}>
             <span>{isFlowchart ? '\uD83D\uDCD0' : '\uD83E\uDDE0'}</span>
             {activeMap.name}
           </h3>
         ) : (
-          <h3 className="text-sm font-semibold text-slate-700">ThinkNode</h3>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--toolbar-text)' }}>ThinkNode</h3>
         )}
         {dirty && (
           <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
@@ -205,6 +238,89 @@ export function Toolbar() {
               </button>
             </>
           )}
+
+          <div className="w-px h-5 bg-slate-200 mx-1" />
+
+          {/* Export button */}
+          <button
+            onClick={exportCurrentMap}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            style={{ color: 'var(--toolbar-text)' }}
+            title="Export as JSON"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+
+          {/* Import button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            style={{ color: 'var(--toolbar-text)' }}
+            title="Import JSON"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </button>
+
+          <div className="w-px h-5 bg-slate-200 mx-1" />
+
+          {/* Theme Selector */}
+          <div className="flex items-center gap-1">
+            {themeOptions.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setTheme(t.value)}
+                className={`w-5 h-5 rounded-full border-2 transition-all ${
+                  theme === t.value ? 'scale-110 ring-2 ring-offset-1 ring-blue-400' : 'hover:scale-105'
+                }`}
+                style={{
+                  backgroundColor: t.color,
+                  borderColor: theme === t.value ? '#3b82f6' : '#94a3b8',
+                }}
+                title={t.label}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Show import/export and theme even when no map is active */}
+      {!activeMapId && (
+        <div className="flex items-center gap-1">
+          {/* Import button (always available) */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            style={{ color: 'var(--toolbar-text)' }}
+            title="Import JSON"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </button>
+
+          <div className="w-px h-5 bg-slate-200 mx-1" />
+
+          {/* Theme Selector */}
+          <div className="flex items-center gap-1">
+            {themeOptions.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setTheme(t.value)}
+                className={`w-5 h-5 rounded-full border-2 transition-all ${
+                  theme === t.value ? 'scale-110 ring-2 ring-offset-1 ring-blue-400' : 'hover:scale-105'
+                }`}
+                style={{
+                  backgroundColor: t.color,
+                  borderColor: theme === t.value ? '#3b82f6' : '#94a3b8',
+                }}
+                title={t.label}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

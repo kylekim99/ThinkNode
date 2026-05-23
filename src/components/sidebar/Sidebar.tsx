@@ -18,15 +18,15 @@ export function Sidebar() {
   }
 
   return (
-    <div className="w-[250px] min-w-[250px] h-full bg-white border-r border-slate-200 flex flex-col">
-      <div className="px-4 py-3 border-b border-slate-200">
+    <div className="w-[250px] min-w-[250px] h-full border-r flex flex-col" style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--sidebar-border)' }}>
+      <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold text-slate-800 tracking-tight">ThinkNode</h2>
+          <h2 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--sidebar-text)' }}>ThinkNode</h2>
         </div>
-        <p className="text-xs text-slate-400">Mind Map & Flowchart Editor</p>
+        <p className="text-xs" style={{ color: 'var(--sidebar-text)', opacity: 0.5 }}>Mind Map & Flowchart Editor</p>
       </div>
 
-      <div className="px-3 py-2 border-b border-slate-100">
+      <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
         {isCreating ? (
           <div className="space-y-2">
             <input
@@ -77,7 +77,7 @@ export function Sidebar() {
       <MapList />
       <TagExplorer />
 
-      <div className="px-3 py-2 border-t border-slate-100">
+      <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--sidebar-border)' }}>
         <button
           onClick={() => setViewMode(viewMode === 'timeline' ? 'mindmap' : 'timeline')}
           className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
