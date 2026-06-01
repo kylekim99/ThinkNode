@@ -55,12 +55,18 @@ function edgesFromNodes(nodes: Node<MindMapNodeData>[]): Edge[] {
   const edges: Edge[] = [];
   for (const node of nodes) {
     if (node.data.parentId) {
-      edges.push({
+      const edge: Edge = {
         id: `e-${node.data.parentId}-${node.id}`,
         source: node.data.parentId,
         target: node.id,
         type: 'smoothstep',
-      });
+      };
+      // 사용자가 선택한 연결 핸들 유지
+      const sh = (node.data as Record<string, unknown>)._sourceHandle as string | undefined;
+      const th = (node.data as Record<string, unknown>)._targetHandle as string | undefined;
+      if (sh) edge.sourceHandle = sh;
+      if (th) edge.targetHandle = th;
+      edges.push(edge);
     }
   }
   return edges;
@@ -109,7 +115,7 @@ interface MapStore {
   selectEdge: (edgeId: string | null) => void;
   updateEdgeLabel: (edgeId: string, label: string) => void;
   setDueDate: (nodeId: string, date: string | null) => void;
-  connectNodes: (sourceId: string, targetId: string) => void;
+  connectNodes: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => void;
   connectFlowchartNodes: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => void;
   setNodes: (nodes: Node<MindMapNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -417,25 +423,25 @@ export const useMapStore = create<MapStore>((set, get) => ({
     }
   },
 
-  connectNodes: (sourceId: string, targetId: string) => {
+  connectNodes: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => {
     const state = get();
-    // Prevent self-connection
+    // 자기 자신 연결 방지
     if (sourceId === targetId) return;
-    // Prevent connecting to a node that already has a parent (would create multi-parent)
     const targetNode = state.nodes.find((n) => n.id === targetId);
     if (!targetNode) return;
-    // Prevent circular connection (target is ancestor of source)
-    const sourceAncestors = new Set<string>();
+    // 순환 연결 방지
     let current = state.nodes.find((n) => n.id === sourceId);
     while (current?.data.parentId) {
-      if (current.data.parentId === targetId) return; // would create cycle
-      sourceAncestors.add(current.data.parentId);
+      if (current.data.parentId === targetId) return;
       current = state.nodes.find((n) => n.id === current!.data.parentId);
     }
 
     const newPast = pushHistory(state);
+    // 노드에 parentId, 연결 핸들 정보 저장
     const newNodes = state.nodes.map((n) =>
-      n.id === targetId ? { ...n, data: { ...n.data, parentId: sourceId } } : n
+      n.id === targetId
+        ? { ...n, data: { ...n.data, parentId: sourceId, _sourceHandle: sourceHandle, _targetHandle: targetHandle } }
+        : n
     );
     const newEdges = edgesFromNodes(newNodes);
 

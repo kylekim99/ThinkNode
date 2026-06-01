@@ -100,7 +100,12 @@ export function MindMapCanvas() {
   const onConnect: OnConnect = useCallback(
     (connection) => {
       if (connection.source && connection.target) {
-        connectNodes(connection.source, connection.target);
+        connectNodes(
+          connection.source,
+          connection.target,
+          connection.sourceHandle ?? undefined,
+          connection.targetHandle ?? undefined,
+        );
       }
     },
     [connectNodes]
