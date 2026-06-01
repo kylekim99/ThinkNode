@@ -275,8 +275,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const newNodes = [...state.nodes, newNode];
     const newEdges = edgesFromNodes(newNodes);
 
+    // 현재 레이아웃 방향에 맞춰 자동 정렬
     const serialized = serializeNodes(newNodes);
-    const positions = computeLayout(serialized);
+    const positions = computeLayout(serialized, state.layoutDirection);
     for (const n of newNodes) {
       const pos = positions.get(n.id);
       if (pos) n.position = pos;
@@ -309,8 +310,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const newNodes = [...state.nodes, newNode];
     const newEdges = edgesFromNodes(newNodes);
 
+    // 현재 레이아웃 방향에 맞춰 자동 정렬
     const serialized = serializeNodes(newNodes);
-    const positions = computeLayout(serialized);
+    const positions = computeLayout(serialized, state.layoutDirection);
     for (const n of newNodes) {
       const pos = positions.get(n.id);
       if (pos) n.position = pos;
