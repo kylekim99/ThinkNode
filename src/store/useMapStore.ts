@@ -51,22 +51,40 @@ function deserializeEdges(edges: SerializedEdge[]): Edge[] {
   }));
 }
 
-function edgesFromNodes(nodes: Node<MindMapNodeData>[]): Edge[] {
+function edgesFromNodes(nodes: Node<MindMapNodeData>[], layoutDir?: LayoutDirection): Edge[] {
   const edges: Edge[] = [];
   for (const node of nodes) {
     if (node.data.parentId) {
-      const edge: Edge = {
+      // 사용자가 직접 연결한 핸들 정보가 있으면 우선 사용
+      const sh = (node.data as Record<string, unknown>)._sourceHandle as string | undefined;
+      const th = (node.data as Record<string, unknown>)._targetHandle as string | undefined;
+
+      let sourceHandle = sh;
+      let targetHandle = th;
+
+      // 사용자 지정 핸들이 없으면 레이아웃 방향에 따라 자동 결정
+      if (!sourceHandle || !targetHandle) {
+        const dir = layoutDir || 'vertical';
+        if (dir === 'vertical') {
+          sourceHandle = 'bottom-src';
+          targetHandle = 'top';
+        } else if (dir === 'horizontal-lr') {
+          sourceHandle = 'right-src';
+          targetHandle = 'left';
+        } else {
+          sourceHandle = 'left-src';
+          targetHandle = 'right';
+        }
+      }
+
+      edges.push({
         id: `e-${node.data.parentId}-${node.id}`,
         source: node.data.parentId,
         target: node.id,
         type: 'smoothstep',
-      };
-      // 사용자가 선택한 연결 핸들 유지
-      const sh = (node.data as Record<string, unknown>)._sourceHandle as string | undefined;
-      const th = (node.data as Record<string, unknown>)._targetHandle as string | undefined;
-      if (sh) edge.sourceHandle = sh;
-      if (th) edge.targetHandle = th;
-      edges.push(edge);
+        sourceHandle,
+        targetHandle,
+      });
     }
   }
   return edges;
@@ -273,7 +291,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       data: { content: content || 'New node', parentId },
     };
     const newNodes = [...state.nodes, newNode];
-    const newEdges = edgesFromNodes(newNodes);
+    const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
     // 현재 레이아웃 방향에 맞춰 자동 정렬
     const serialized = serializeNodes(newNodes);
@@ -308,7 +326,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       data: { content: 'New node', parentId: node.data.parentId },
     };
     const newNodes = [...state.nodes, newNode];
-    const newEdges = edgesFromNodes(newNodes);
+    const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
     // 현재 레이아웃 방향에 맞춰 자동 정렬
     const serialized = serializeNodes(newNodes);
@@ -411,7 +429,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       const descendantIds = getDescendantIds(nodeId, state.nodes);
       const idsToRemove = new Set([nodeId, ...descendantIds]);
       const newNodes = state.nodes.filter((n) => !idsToRemove.has(n.id));
-      const newEdges = edgesFromNodes(newNodes);
+      const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
       set({
         nodes: newNodes,
@@ -445,7 +463,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
         ? { ...n, data: { ...n.data, parentId: sourceId, _sourceHandle: sourceHandle, _targetHandle: targetHandle } }
         : n
     );
-    const newEdges = edgesFromNodes(newNodes);
+    const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
     set({
       nodes: newNodes,
@@ -614,7 +632,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
       const pos = positions.get(n.id);
       return pos ? { ...n, position: pos } : n;
     });
-    set({ nodes: newNodes, layoutDirection: dir, past: newPast, future: [], dirty: true });
+    // 레이아웃 방향 변경 시 엣지 핸들도 업데이트
+    const newEdges = edgesFromNodes(newNodes, dir);
+    set({ nodes: newNodes, edges: newEdges, layoutDirection: dir, past: newPast, future: [], dirty: true });
   },
 
   undo: () => {

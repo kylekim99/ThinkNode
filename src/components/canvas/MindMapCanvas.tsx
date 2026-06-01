@@ -34,22 +34,26 @@ export function MindMapCanvas() {
   const setEdges = useMapStore((s) => s.setEdges);
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const themeConfig = useThemeStore((s) => s.getConfig());
-  const { fitView, setCenter, getZoom } = useReactFlow();
+  const { setCenter, getZoom } = useReactFlow();
   const { guides, handleNodeDrag, handleNodeDragStop, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
-  const prevNodePositionsRef = useRef('');
   const isDraggingRef = useRef(false);
 
-  // 노드 추가 시 중앙 이동 / 레이아웃 변경 시 fitView (드래그 중에는 비활성화)
+  // 노드 추가 시 새 노드로 중앙 이동 (드래그 중/클릭 시에는 비활성화)
+  const nodesLengthRef = useRef(nodes.length);
+
   useEffect(() => {
     if (isDraggingRef.current) {
+      nodesLengthRef.current = nodes.length;
       prevNodesLengthRef.current = nodes.length;
       return;
     }
 
-    const nodeAdded = nodes.length > prevNodesLengthRef.current;
+    const nodeAdded = nodes.length > nodesLengthRef.current;
+    nodesLengthRef.current = nodes.length;
 
     if (nodeAdded && selectedNodeId) {
+      // 새 노드 추가됨 — 해당 노드로 부드럽게 이동
       const newNode = nodes.find((n) => n.id === selectedNodeId);
       if (newNode) {
         const zoom = getZoom();
@@ -57,17 +61,12 @@ export function MindMapCanvas() {
           setCenter(newNode.position.x, newNode.position.y, { zoom: Math.max(zoom, 0.8), duration: 300 });
         }, 60);
       }
-    } else {
-      const posHash = nodes.map((n) => `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}`).join('|');
-      const positionsChanged = posHash !== prevNodePositionsRef.current;
-      if (positionsChanged && prevNodePositionsRef.current !== '' && !nodeAdded) {
-        setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 50);
-      }
-      prevNodePositionsRef.current = posHash;
     }
 
+    // posHash 기반 fitView는 수동 레이아웃 버튼(Ctrl+L)에서만 작동하도록 제거
+    // 노드 클릭/선택 시 불필요한 fitView 호출 방지
     prevNodesLengthRef.current = nodes.length;
-  }, [nodes, selectedNodeId, fitView, setCenter, getZoom]);
+  }, [nodes.length, selectedNodeId, setCenter, getZoom]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
