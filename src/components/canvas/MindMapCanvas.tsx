@@ -38,13 +38,18 @@ export function MindMapCanvas() {
   const { guides, handleNodeDrag, handleNodeDragStop, snapNodeChanges } = useSnapGuides(nodes);
   const prevNodesLengthRef = useRef(nodes.length);
   const prevNodePositionsRef = useRef('');
+  const isDraggingRef = useRef(false);
 
-  // When a new node is added, center the viewport on it
+  // 노드 추가 시 중앙 이동 / 레이아웃 변경 시 fitView (드래그 중에는 비활성화)
   useEffect(() => {
+    if (isDraggingRef.current) {
+      prevNodesLengthRef.current = nodes.length;
+      return;
+    }
+
     const nodeAdded = nodes.length > prevNodesLengthRef.current;
 
     if (nodeAdded && selectedNodeId) {
-      // New node was added — center on the selected (new) node
       const newNode = nodes.find((n) => n.id === selectedNodeId);
       if (newNode) {
         const zoom = getZoom();
@@ -53,7 +58,6 @@ export function MindMapCanvas() {
         }, 60);
       }
     } else {
-      // Layout changed (e.g., auto-layout button) — fit all nodes
       const posHash = nodes.map((n) => `${n.id}:${Math.round(n.position.x)},${Math.round(n.position.y)}`).join('|');
       const positionsChanged = posHash !== prevNodePositionsRef.current;
       if (positionsChanged && prevNodePositionsRef.current !== '' && !nodeAdded) {
@@ -89,8 +93,13 @@ export function MindMapCanvas() {
     [selectNode]
   );
 
+  const onNodeDragStart: NodeMouseHandler = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
   const onNodeDragStop: NodeMouseHandler = useCallback(
     (_event, node) => {
+      isDraggingRef.current = false;
       moveNode(node.id, node.position);
       handleNodeDragStop();
     },
@@ -137,6 +146,7 @@ export function MindMapCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onNodeDragStart={onNodeDragStart}
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={onPaneClick}
