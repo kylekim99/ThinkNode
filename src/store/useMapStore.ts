@@ -131,6 +131,7 @@ interface MapStore {
   updateNodeContent: (nodeId: string, content: string) => void;
   deleteNode: (nodeId: string) => void;
   moveNode: (nodeId: string, newPosition: { x: number; y: number }) => void;
+  resizeNode: (nodeId: string, width: number, height: number) => void;
   selectNode: (nodeId: string | null) => void;
   setEditingNode: (nodeId: string | null) => void;
   selectEdge: (edgeId: string | null) => void;
@@ -542,6 +543,18 @@ export const useMapStore = create<MapStore>((set, get) => ({
       n.id === nodeId ? { ...n, position: newPosition } : n
     );
     set({ nodes: newNodes, dirty: true });
+  },
+
+  resizeNode: (nodeId: string, width: number, height: number) => {
+    // 노드 리사이즈 저장 (Undo/Redo 히스토리 포함, IndexedDB에 자동 지속)
+    const state = get();
+    const newPast = pushHistory(state);
+    const newNodes = state.nodes.map((n) =>
+      n.id === nodeId
+        ? { ...n, data: { ...n.data, width, height } as MindMapNodeData }
+        : n
+    );
+    set({ nodes: newNodes, past: newPast, future: [], dirty: true });
   },
 
   selectNode: (nodeId: string | null) => {

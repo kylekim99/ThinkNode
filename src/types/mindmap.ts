@@ -12,6 +12,9 @@ export interface MindMapNodeData extends Record<string, unknown> {
   tags?: string[];
   dueDate?: string | null;  // ISO date string "YYYY-MM-DD"
   customColor?: string;     // hex color for custom node bg
+  // 사용자 리사이즈로 저장된 크기 (없으면 default 사용, backward compatible)
+  width?: number;
+  height?: number;
 }
 
 export interface MapData {

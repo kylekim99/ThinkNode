@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import { differenceInDays, parseISO, isToday, isPast, format } from 'date-fns';
 import type { MindMapNodeData } from '../../types/mindmap';
 import { useMapStore } from '../../store/useMapStore';
@@ -14,6 +14,8 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const selectNode = useMapStore((s) => s.selectNode);
   // 레이아웃 방향에 따라 필요한 Handle만 렌더 → 8개 → 2개 축소 (엣지 흔들림 해소)
   const layoutDirection = useMapStore((s) => s.layoutDirection);
+  // 노드 리사이즈 액션 (선택된 노드 모서리에서 드래그 → 저장)
+  const resizeNode = useMapStore((s) => s.resizeNode);
 
   const isEditing = editingNodeId === id;
   const [editValue, setEditValue] = useState(data.content);
@@ -131,16 +133,40 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
     return { colorClass, formatted };
   }, [data.dueDate]);
 
+  // 사용자 저장 크기 있으면 우선 사용, 없으면 CSS min/max 폭 규칙 사용
+  const hasCustomSize = data.width != null && data.height != null;
+  const sizeStyle = hasCustomSize
+    ? { width: data.width, height: data.height }
+    : {};
+
   return (
     <div
-      className="min-w-[120px] max-w-[260px] px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer"
+      className={
+        hasCustomSize
+          ? 'px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer flex items-center'
+          : 'min-w-[120px] max-w-[260px] px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer'
+      }
       style={{
+        ...sizeStyle,
         backgroundColor: nodeStyle.backgroundColor,
         borderColor: nodeStyle.borderColor,
         boxShadow: selected ? `0 10px 15px -3px ${nodeStyle.borderColor}33` : '0 4px 6px -1px rgba(0,0,0,0.1)',
       }}
       onDoubleClick={handleDoubleClick}
     >
+      {/* 선택된 노드에서만 리사이즈 핸들 표시 (min 120×40, aspect 자유) */}
+      <NodeResizer
+        isVisible={selected}
+        minWidth={120}
+        minHeight={40}
+        keepAspectRatio={false}
+        onResizeEnd={(_event, params) => {
+          // 리사이즈 완료 시 store에 크기 저장 (Undo/Redo 히스토리에도 포함됨)
+          resizeNode(id, Math.round(params.width), Math.round(params.height));
+        }}
+        lineClassName="!border-blue-400"
+        handleClassName="!bg-blue-500 !border-white !border-2"
+      />
       {/* 레이아웃 방향 기반 handle 렌더링 (2개만 활성 → closest-handle 흔들림 해소) */}
       {layoutDirection === 'vertical' && (
         <>
