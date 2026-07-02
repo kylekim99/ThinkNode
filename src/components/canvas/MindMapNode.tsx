@@ -12,6 +12,8 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const setEditingNode = useMapStore((s) => s.setEditingNode);
   const updateNodeContent = useMapStore((s) => s.updateNodeContent);
   const selectNode = useMapStore((s) => s.selectNode);
+  // 레이아웃 방향에 따라 필요한 Handle만 렌더 → 8개 → 2개 축소 (엣지 흔들림 해소)
+  const layoutDirection = useMapStore((s) => s.layoutDirection);
 
   const isEditing = editingNodeId === id;
   const [editValue, setEditValue] = useState(data.content);
@@ -139,23 +141,31 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      {/* 4-directional connection handles */}
-      <Handle type="target" position={Position.Top} id="top"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="source" position={Position.Top} id="top-src"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="target" position={Position.Bottom} id="bottom"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="source" position={Position.Bottom} id="bottom-src"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="target" position={Position.Left} id="left"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="source" position={Position.Left} id="left-src"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="target" position={Position.Right} id="right"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
-      <Handle type="source" position={Position.Right} id="right-src"
-        className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+      {/* 레이아웃 방향 기반 handle 렌더링 (2개만 활성 → closest-handle 흔들림 해소) */}
+      {layoutDirection === 'vertical' && (
+        <>
+          <Handle type="target" position={Position.Top} id="top"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+          <Handle type="source" position={Position.Bottom} id="bottom-src"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+        </>
+      )}
+      {layoutDirection === 'horizontal-lr' && (
+        <>
+          <Handle type="target" position={Position.Left} id="left"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+          <Handle type="source" position={Position.Right} id="right-src"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+        </>
+      )}
+      {layoutDirection === 'horizontal-rl' && (
+        <>
+          <Handle type="target" position={Position.Right} id="right"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+          <Handle type="source" position={Position.Left} id="left-src"
+            className="!w-3 !h-3 !bg-slate-300 !border-2 !border-slate-400 hover:!bg-blue-400 hover:!border-blue-500 !transition-colors" />
+        </>
+      )}
 
       {isEditing ? (
         <input

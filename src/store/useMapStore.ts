@@ -25,7 +25,8 @@ function serializeEdges(edges: Edge[]): SerializedEdge[] {
     target: e.target,
     sourceHandle: e.sourceHandle || undefined,
     targetHandle: e.targetHandle || undefined,
-    type: e.type || 'smoothstep',
+    // step: L자 직각 엣지 (기본). 저장된 smoothstep도 유효 (하위 호환)
+    type: e.type || 'step',
     label: typeof e.label === 'string' ? e.label : undefined,
   }));
 }
@@ -46,7 +47,8 @@ function deserializeEdges(edges: SerializedEdge[]): Edge[] {
     target: e.target,
     sourceHandle: e.sourceHandle || undefined,
     targetHandle: e.targetHandle || undefined,
-    type: e.type || 'smoothstep',
+    // 하위 호환: 기존 smoothstep 저장분도 그대로 로드 가능
+    type: e.type || 'step',
     ...(e.label ? { label: e.label } : {}),
   }));
 }
@@ -62,9 +64,9 @@ function edgesFromNodes(nodes: Node<MindMapNodeData>[], layoutDir?: LayoutDirect
       let sourceHandle = sh;
       let targetHandle = th;
 
-      // 사용자 지정 핸들이 없으면 레이아웃 방향에 따라 자동 결정
+      // 사용자 지정 핸들이 없으면 레이아웃 방향에 따라 자동 결정 (default: horizontal-lr)
       if (!sourceHandle || !targetHandle) {
-        const dir = layoutDir || 'vertical';
+        const dir = layoutDir || 'horizontal-lr';
         if (dir === 'vertical') {
           sourceHandle = 'bottom-src';
           targetHandle = 'top';
@@ -81,7 +83,8 @@ function edgesFromNodes(nodes: Node<MindMapNodeData>[], layoutDir?: LayoutDirect
         id: `e-${node.data.parentId}-${node.id}`,
         source: node.data.parentId,
         target: node.id,
-        type: 'smoothstep',
+        // step 엣지: L자 직각선 (참고이미지 1 스타일)
+        type: 'step',
         sourceHandle,
         targetHandle,
       });
@@ -166,7 +169,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   selectedNodeId: null,
   editingNodeId: null,
   selectedEdgeId: null,
-  layoutDirection: 'vertical' as LayoutDirection,
+  layoutDirection: 'horizontal-lr' as LayoutDirection,
   past: [],
   future: [],
   dirty: false,

@@ -153,8 +153,9 @@ export function MindMapCanvas() {
         fitView
         fitViewOptions={{ padding: 0.3 }}
         defaultEdgeOptions={{
-          type: 'smoothstep',
-          style: { stroke: themeConfig.name === 'dark' ? '#64748b' : '#94a3b8', strokeWidth: 2 },
+          // step: L자 직각 엣지 (참고이미지 1 스타일). React Flow 내장 step edge는 별도 옵션 없이 orthogonal 렌더.
+          type: 'step',
+          style: { stroke: themeConfig.name === 'dark' ? '#94a3b8' : '#475569', strokeWidth: 3 },
         }}
         proOptions={{ hideAttribution: true }}
         style={{ backgroundColor: themeConfig.canvas.bg }}
