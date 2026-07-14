@@ -163,6 +163,19 @@ interface MapStore {
   resizeNode: (nodeId: string, width: number, height: number) => void;
   snapshotForResize: () => void;
   resizeNodeLive: (nodeId: string, width: number, height: number) => void;
+  // 커스텀 NodeResizer (Boss msg 3040 완전 재구현) 상태·액션
+  resizeContext: { nodeId: string; startPos: { x: number; y: number }; startW: number; startH: number } | null;
+  beginCustomResize: (nodeId: string, startW: number, startH: number) => void;
+  updateCustomResize: (
+    worldDx: number,
+    worldDy: number,
+    corner: 'nw' | 'ne' | 'sw' | 'se',
+    minWidth: number,
+    minHeight: number,
+    maxWidth: number,
+    maxHeight: number,
+  ) => void;
+  endCustomResize: () => void;
   selectNode: (nodeId: string | null) => void;
   setEditingNode: (nodeId: string | null) => void;
   selectEdge: (edgeId: string | null) => void;
@@ -206,8 +219,110 @@ export const useMapStore = create<MapStore>((set, get) => ({
   future: [],
   dirty: false,
   lastCommitAt: 0,
+  resizeContext: null,
 
   markCommit: () => set({ lastCommitAt: Date.now() }),
+
+  // ── 커스텀 NodeResizer (Boss msg 3040 완전 재구현) 액션 3종 ──────────────
+  // beginCustomResize: 드래그 시작 시 호출. 히스토리 스냅샷 확보 + resizeContext에 startPos/startSize 저장
+  beginCustomResize: (nodeId: string, startW: number, startH: number) => {
+    const state = get();
+    const node = state.nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    const newPast = pushHistory(state);
+    set({
+      past: newPast,
+      future: [],
+      resizeContext: {
+        nodeId,
+        startPos: { x: node.position.x, y: node.position.y },
+        startW,
+        startH,
+      },
+    });
+  },
+
+  // updateCustomResize: 드래그 중 매번 호출. delta·corner·min/max 를 받아 새 크기·위치 계산 후 store 갱신 (히스토리 push 없음)
+  updateCustomResize: (
+    worldDx: number,
+    worldDy: number,
+    corner: 'nw' | 'ne' | 'sw' | 'se',
+    minWidth: number,
+    minHeight: number,
+    maxWidth: number,
+    maxHeight: number,
+  ) => {
+    const state = get();
+    const ctx = state.resizeContext;
+    if (!ctx) return;
+
+    let newW = ctx.startW;
+    let newH = ctx.startH;
+    let posOffX = 0;
+    let posOffY = 0;
+
+    // 코너별 크기·위치 offset 방향 (왼쪽 코너는 position.x 이동, 상단 코너는 position.y 이동)
+    switch (corner) {
+      case 'se':
+        newW = ctx.startW + worldDx;
+        newH = ctx.startH + worldDy;
+        break;
+      case 'sw':
+        newW = ctx.startW - worldDx;
+        newH = ctx.startH + worldDy;
+        posOffX = worldDx;
+        break;
+      case 'ne':
+        newW = ctx.startW + worldDx;
+        newH = ctx.startH - worldDy;
+        posOffY = worldDy;
+        break;
+      case 'nw':
+        newW = ctx.startW - worldDx;
+        newH = ctx.startH - worldDy;
+        posOffX = worldDx;
+        posOffY = worldDy;
+        break;
+    }
+
+    // Clamp — clamp 발생 시 position offset 재조정 (왼쪽·상단 코너만)
+    const rawW = newW;
+    newW = Math.max(minWidth, Math.min(maxWidth, newW));
+    if (newW !== rawW && (corner === 'sw' || corner === 'nw')) {
+      posOffX = ctx.startW - newW;
+    }
+    const rawH = newH;
+    newH = Math.max(minHeight, Math.min(maxHeight, newH));
+    if (newH !== rawH && (corner === 'ne' || corner === 'nw')) {
+      posOffY = ctx.startH - newH;
+    }
+
+    const finalW = Math.round(newW);
+    const finalH = Math.round(newH);
+    const finalPos = {
+      x: Math.round(ctx.startPos.x + posOffX),
+      y: Math.round(ctx.startPos.y + posOffY),
+    };
+
+    // node.width/height + data.width/height + position 모두 동시 갱신 → wrapper·inner·persistence 동기
+    const newNodes = state.nodes.map((n) =>
+      n.id === ctx.nodeId
+        ? {
+            ...n,
+            width: finalW,
+            height: finalH,
+            position: finalPos,
+            data: { ...n.data, width: finalW, height: finalH } as MindMapNodeData,
+          }
+        : n,
+    );
+    set({ nodes: newNodes, dirty: true });
+  },
+
+  // endCustomResize: 드래그 종료. resizeContext 클리어. (히스토리는 begin에서 이미 push됨)
+  endCustomResize: () => {
+    set({ resizeContext: null });
+  },
 
   init: async () => {
     const maps = await getAllMaps();

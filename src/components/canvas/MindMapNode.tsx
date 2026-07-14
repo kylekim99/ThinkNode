@@ -1,9 +1,10 @@
 import { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { differenceInDays, parseISO, isToday, isPast, format } from 'date-fns';
 import type { MindMapNodeData } from '../../types/mindmap';
 import { useMapStore } from '../../store/useMapStore';
 import { useThemeStore, colorfulBorders } from '../../store/useThemeStore';
+import { CustomNodeResizer } from './CustomNodeResizer';
 
 type MindMapNodeProps = NodeProps & { data: MindMapNodeData };
 
@@ -14,12 +15,8 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const selectNode = useMapStore((s) => s.selectNode);
   // 레이아웃 방향에 따라 필요한 Handle만 렌더 → 8개 → 2개 축소 (엣지 흔들림 해소)
   const layoutDirection = useMapStore((s) => s.layoutDirection);
-  // 노드 리사이즈 액션 (선택된 노드 모서리에서 드래그 → 저장)
-  // - snapshotForResize: 드래그 시작 시 pre-drag 상태를 히스토리에 저장 (Undo 지점)
-  // - resizeNodeLive: 드래그 중 실시간 크기 갱신 (히스토리 push 없음, wrapper+data 동시 갱신)
-  // - resizeNode: 최종 커밋용 (기존 API, 프로그램 호출 시 사용)
-  const snapshotForResize = useMapStore((s) => s.snapshotForResize);
-  const resizeNodeLive = useMapStore((s) => s.resizeNodeLive);
+  // 노드 리사이즈: CustomNodeResizer가 store 액션을 직접 호출하므로 여기서는 selector 불필요.
+  // (기존 snapshotForResize/resizeNodeLive는 store에 남아 있으나 이 컴포넌트에서 참조하지 않음)
   // 편집 종료 직후 전역 keydown 리스너가 같은 Enter 이벤트로 새 노드를 만드는
   // double-trigger를 막기 위한 타임스탬프 갱신 액션
   const markCommit = useMapStore((s) => s.markCommit);
@@ -174,29 +171,21 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
       }
       style={{
         ...sizeStyle,
+        // CustomNodeResizer의 absolute handle들이 이 요소를 기준으로 배치되도록 position: relative
+        position: 'relative',
         backgroundColor: nodeStyle.backgroundColor,
         borderColor: nodeStyle.borderColor,
         boxShadow: selected ? `0 10px 15px -3px ${nodeStyle.borderColor}33` : '0 4px 6px -1px rgba(0,0,0,0.1)',
       }}
       onDoubleClick={handleDoubleClick}
     >
-      {/* 선택된 노드에서만 리사이즈 핸들 표시 (min 120×40, aspect 자유)
-       * onResizeStart: 히스토리 스냅샷 확보 (Undo 지점)
-       * onResize:     드래그 중 실시간 width/height 갱신 → wrapper + inner div 동시 확장
-       *                (히스토리 push 없음 → 드래그 한 번에 대해 Undo 한 번만) */}
-      <NodeResizer
-        isVisible={selected}
+      {/* 커스텀 NodeResizer (Boss msg 3040 완전 재구현) — 내장 NodeResizer 대체
+       * mouse event 직접 처리 + 4모서리 + zoom-aware + store 통합 관리 */}
+      <CustomNodeResizer
+        nodeId={id}
+        visible={selected}
         minWidth={120}
         minHeight={40}
-        keepAspectRatio={false}
-        onResizeStart={() => {
-          snapshotForResize();
-        }}
-        onResize={(_event, params) => {
-          resizeNodeLive(id, Math.round(params.width), Math.round(params.height));
-        }}
-        lineClassName="!border-blue-400"
-        handleClassName="!bg-blue-500 !border-white !border-2"
       />
       {/* 레이아웃 방향 기반 handle 렌더링 (2개만 활성 → closest-handle 흔들림 해소) */}
       {layoutDirection === 'vertical' && (
