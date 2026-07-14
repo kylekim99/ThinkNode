@@ -15,7 +15,11 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   // 레이아웃 방향에 따라 필요한 Handle만 렌더 → 8개 → 2개 축소 (엣지 흔들림 해소)
   const layoutDirection = useMapStore((s) => s.layoutDirection);
   // 노드 리사이즈 액션 (선택된 노드 모서리에서 드래그 → 저장)
-  const resizeNode = useMapStore((s) => s.resizeNode);
+  // - snapshotForResize: 드래그 시작 시 pre-drag 상태를 히스토리에 저장 (Undo 지점)
+  // - resizeNodeLive: 드래그 중 실시간 크기 갱신 (히스토리 push 없음, wrapper+data 동시 갱신)
+  // - resizeNode: 최종 커밋용 (기존 API, 프로그램 호출 시 사용)
+  const snapshotForResize = useMapStore((s) => s.snapshotForResize);
+  const resizeNodeLive = useMapStore((s) => s.resizeNodeLive);
   // 편집 종료 직후 전역 keydown 리스너가 같은 Enter 이벤트로 새 노드를 만드는
   // double-trigger를 막기 위한 타임스탬프 갱신 액션
   const markCommit = useMapStore((s) => s.markCommit);
@@ -153,17 +157,19 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
     return { colorClass, formatted };
   }, [data.dueDate]);
 
-  // 사용자 저장 크기 있으면 우선 사용, 없으면 CSS min/max 폭 규칙 사용
+  // 사용자 저장 크기 있으면 wrapper를 100% 채워 시각 크기와 React Flow wrapper 크기 일치
+  // Wrapper 크기는 React Flow가 node.width/height으로 관리 (드래그 중 실시간, 로드 시 복원)
+  // 저장된 사이즈 없으면 min-w/max-w로 content-sized (초기 상태)
   const hasCustomSize = data.width != null && data.height != null;
   const sizeStyle = hasCustomSize
-    ? { width: data.width, height: data.height }
+    ? { width: '100%', height: '100%' }
     : {};
 
   return (
     <div
       className={
         hasCustomSize
-          ? 'px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer flex items-center'
+          ? 'px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer flex items-center justify-center'
           : 'min-w-[120px] max-w-[260px] px-4 py-2 rounded-lg border-2 transition-all duration-150 hover:shadow-lg cursor-pointer'
       }
       style={{
@@ -174,15 +180,20 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      {/* 선택된 노드에서만 리사이즈 핸들 표시 (min 120×40, aspect 자유) */}
+      {/* 선택된 노드에서만 리사이즈 핸들 표시 (min 120×40, aspect 자유)
+       * onResizeStart: 히스토리 스냅샷 확보 (Undo 지점)
+       * onResize:     드래그 중 실시간 width/height 갱신 → wrapper + inner div 동시 확장
+       *                (히스토리 push 없음 → 드래그 한 번에 대해 Undo 한 번만) */}
       <NodeResizer
         isVisible={selected}
         minWidth={120}
         minHeight={40}
         keepAspectRatio={false}
-        onResizeEnd={(_event, params) => {
-          // 리사이즈 완료 시 store에 크기 저장 (Undo/Redo 히스토리에도 포함됨)
-          resizeNode(id, Math.round(params.width), Math.round(params.height));
+        onResizeStart={() => {
+          snapshotForResize();
+        }}
+        onResize={(_event, params) => {
+          resizeNodeLive(id, Math.round(params.width), Math.round(params.height));
         }}
         lineClassName="!border-blue-400"
         handleClassName="!bg-blue-500 !border-white !border-2"

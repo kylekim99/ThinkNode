@@ -32,12 +32,23 @@ function serializeEdges(edges: Edge[]): SerializedEdge[] {
 }
 
 function deserializeNodes(nodes: SerializedNode[]): Node<MindMapNodeData>[] {
-  return nodes.map((n) => ({
-    id: n.id,
-    type: n.type || 'mindMapNode',
-    position: { ...n.position },
-    data: { ...n.data },
-  }));
+  return nodes.map((n) => {
+    const node: Node<MindMapNodeData> = {
+      id: n.id,
+      type: n.type || 'mindMapNode',
+      position: { ...n.position },
+      data: { ...n.data },
+    };
+    // 사용자 저장 리사이즈 크기가 있으면 React Flow wrapper 크기도 함께 복원
+    // ↳ 그래야 wrapper 사이즈가 확보되어 inner div의 width:100% 채움이 시각적으로 정확
+    const savedW = (n.data as { width?: number }).width;
+    const savedH = (n.data as { height?: number }).height;
+    if (typeof savedW === 'number' && typeof savedH === 'number') {
+      node.width = savedW;
+      node.height = savedH;
+    }
+    return node;
+  });
 }
 
 function deserializeEdges(edges: SerializedEdge[]): Edge[] {
@@ -150,6 +161,8 @@ interface MapStore {
   deleteNode: (nodeId: string) => void;
   moveNode: (nodeId: string, newPosition: { x: number; y: number }) => void;
   resizeNode: (nodeId: string, width: number, height: number) => void;
+  snapshotForResize: () => void;
+  resizeNodeLive: (nodeId: string, width: number, height: number) => void;
   selectNode: (nodeId: string | null) => void;
   setEditingNode: (nodeId: string | null) => void;
   selectEdge: (edgeId: string | null) => void;
@@ -570,14 +583,35 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   resizeNode: (nodeId: string, width: number, height: number) => {
     // 노드 리사이즈 저장 (Undo/Redo 히스토리 포함, IndexedDB에 자동 지속)
+    // React Flow wrapper의 width/height도 동시에 반영 → 시각 크기와 wrapper 크기 일치
     const state = get();
     const newPast = pushHistory(state);
     const newNodes = state.nodes.map((n) =>
       n.id === nodeId
-        ? { ...n, data: { ...n.data, width, height } as MindMapNodeData }
+        ? { ...n, width, height, data: { ...n.data, width, height } as MindMapNodeData }
         : n
     );
     set({ nodes: newNodes, past: newPast, future: [], dirty: true });
+  },
+
+  // 리사이즈 드래그 시작 시 호출 — 현재 상태를 히스토리에 push해 Undo 지점을 확보
+  // 이후 onResize에서 라이브 업데이트되는 값은 히스토리에 쌓이지 않음
+  snapshotForResize: () => {
+    const state = get();
+    const newPast = pushHistory(state);
+    set({ past: newPast, future: [] });
+  },
+
+  // 드래그 중(onResize)에 호출되는 실시간 업데이트 — 히스토리 push 없이
+  // data.width/height + node.width/height를 동시에 갱신해 wrapper와 시각 크기 동기화
+  resizeNodeLive: (nodeId: string, width: number, height: number) => {
+    const state = get();
+    const newNodes = state.nodes.map((n) =>
+      n.id === nodeId
+        ? { ...n, width, height, data: { ...n.data, width, height } as MindMapNodeData }
+        : n
+    );
+    set({ nodes: newNodes, dirty: true });
   },
 
   selectNode: (nodeId: string | null) => {
