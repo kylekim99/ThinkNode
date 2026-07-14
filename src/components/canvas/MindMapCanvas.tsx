@@ -158,6 +158,8 @@ export function MindMapCanvas() {
           style: { stroke: themeConfig.name === 'dark' ? '#94a3b8' : '#475569', strokeWidth: 3 },
         }}
         proOptions={{ hideAttribution: true }}
+        // React Flow 기본 방향키 노드 nudge(위치 이동) 비활성화 — 방향키는 useKeyboardShortcuts에서 포커스 이동만 처리 (msg 3032 fix)
+        disableKeyboardA11y={true}
         style={{ backgroundColor: themeConfig.canvas.bg }}
       >
         <SnapGuideLines guides={guides} />

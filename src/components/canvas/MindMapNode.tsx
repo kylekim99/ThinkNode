@@ -157,12 +157,12 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
     return { colorClass, formatted };
   }, [data.dueDate]);
 
-  // 사용자 저장 크기 있으면 wrapper를 100% 채워 시각 크기와 React Flow wrapper 크기 일치
-  // Wrapper 크기는 React Flow가 node.width/height으로 관리 (드래그 중 실시간, 로드 시 복원)
-  // 저장된 사이즈 없으면 min-w/max-w로 content-sized (초기 상태)
+  // 사용자 저장 크기가 있으면 inner div에 명시적 픽셀 width/height 적용 (React Flow wrapper가 이 child를 측정 → 동일 크기)
+  // 저장된 사이즈 없으면 CSS `min-w-[120px] max-w-[260px]`로 content-sized 초기 상태
+  // ↳ 이전 v0.3의 width:100%는 wrapper 크기 확보가 상황에 따라 unstable해서 explicit px로 회귀 (msg 3032 fix)
   const hasCustomSize = data.width != null && data.height != null;
   const sizeStyle = hasCustomSize
-    ? { width: '100%', height: '100%' }
+    ? { width: data.width, height: data.height }
     : {};
 
   return (

@@ -615,7 +615,15 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   selectNode: (nodeId: string | null) => {
-    set({ selectedNodeId: nodeId });
+    // Zustand selectedNodeId뿐 아니라 React Flow의 nodes[].selected 필드도 함께 동기화
+    // ↳ 이 필드가 파란 테두리·화면 focus를 결정하므로 방향키 네비게이션 시 UI 반영 필수 (msg 3032 fix)
+    const state = get();
+    const newNodes = state.nodes.map((n) => {
+      const shouldSelect = n.id === nodeId;
+      if ((n.selected ?? false) === shouldSelect) return n;
+      return { ...n, selected: shouldSelect };
+    });
+    set({ selectedNodeId: nodeId, nodes: newNodes });
   },
 
   setEditingNode: (nodeId: string | null) => {
