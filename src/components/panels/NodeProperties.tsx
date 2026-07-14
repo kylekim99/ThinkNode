@@ -40,6 +40,9 @@ export function NodeProperties() {
           <textarea
             value={selectedNode.data.content}
             onChange={(e) => updateNodeContent(selectedNode.id, e.target.value)}
+            // Backspace/Delete·방향키가 전역 노드 shortcut으로 전파되어 노드 자체 삭제·이동을 유발하지 않도록 이벤트 중단
+            // (isTypingInInput 가드가 이미 존재하지만 defense-in-depth로 명시적 stopPropagation 추가)
+            onKeyDown={(e) => e.stopPropagation()}
             className="w-full text-sm border rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none"
             style={{ borderColor: 'var(--node-border)', backgroundColor: 'var(--node-bg)', color: 'var(--node-text)' }}
             rows={3}
