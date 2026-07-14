@@ -4,7 +4,9 @@ import { differenceInDays, parseISO, isToday, isPast, format } from 'date-fns';
 import type { MindMapNodeData } from '../../types/mindmap';
 import { useMapStore } from '../../store/useMapStore';
 import { useThemeStore, colorfulBorders } from '../../store/useThemeStore';
-import { CustomNodeResizer } from './CustomNodeResizer';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// CustomNodeResizer는 임시 비활성화 상태 (Boss msg 3048). 재활성화 시 아래 주석 해제
+// import { CustomNodeResizer } from './CustomNodeResizer';
 
 type MindMapNodeProps = NodeProps & { data: MindMapNodeData };
 
@@ -179,14 +181,20 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      {/* 커스텀 NodeResizer (Boss msg 3040 완전 재구현) — 내장 NodeResizer 대체
-       * mouse event 직접 처리 + 4모서리 + zoom-aware + store 통합 관리 */}
+      {/* 노드 리사이즈 임시 비활성화 (Boss msg 3048, 2026-07-14)
+       * 4차례 fix에도 근본 해결 실패 → workaround로 UI 자체 렌더 중지.
+       * CustomNodeResizer.tsx 파일과 useMapStore의 관련 액션은 그대로 보존 →
+       * Friday 직접 진단 or 대체 접근(react-resizable 등) 후 재활성화 시 이 주석 제거만 하면 됨.
+       * 기존 저장된 data.width/height 는 IndexedDB에 그대로 유지 → 재활성화 시 즉시 복구 가능.
+       */}
+      {/*
       <CustomNodeResizer
         nodeId={id}
         visible={selected}
         minWidth={120}
         minHeight={40}
       />
+      */}
       {/* 레이아웃 방향 기반 handle 렌더링 (2개만 활성 → closest-handle 흔들림 해소) */}
       {layoutDirection === 'vertical' && (
         <>
