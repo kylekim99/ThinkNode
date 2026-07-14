@@ -1,12 +1,15 @@
 import type { SerializedNode } from '../types/mindmap';
 
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 80;
+// CSS `min-w-[120px] max-w-[260px]` 범위 안에서 실제 렌더 폭은 콘텐츠 길이에 따라 다름.
+// 리사이즈 안 된 노드의 default를 max-w 값에 맞춰 두면 layout이 과소평가하지 않아 겹침이 크게 줄어든다.
+const NODE_WIDTH = 260;
+// 실제 렌더 높이는 태그·due-date badge 유무로 40~90 사이. 넉넉히 잡아 겹침 방지.
+const NODE_HEIGHT = 110;
 const H_GAP = 50;
 const V_GAP = 110;
-// 2D 충돌 회피 시 최소 유지 간격 (레이아웃 방향과 무관하게 노드 간 여백)
-const OVERLAP_MARGIN = 20;
-const MAX_OVERLAP_ITER = 30;
+// 2D 충돌 회피 시 유지 간격 — 실제 화면상 최소 20px 이상 떨어지도록
+const OVERLAP_MARGIN = 24;
+const MAX_OVERLAP_ITER = 40;
 
 export type LayoutDirection = 'vertical' | 'horizontal-lr' | 'horizontal-rl';
 
@@ -49,12 +52,21 @@ function buildTree(nodes: SerializedNode[]): TreeNode[] {
   return roots;
 }
 
-// 노드별 실제 크기 맵 (사용자 리사이즈 반영). 없으면 default NODE_WIDTH/NODE_HEIGHT 사용
-function buildSizeMap(nodes: SerializedNode[]): Map<string, { width: number; height: number }> {
+// 노드별 실제 크기 맵. 우선순위:
+//   1) data.width/height  — 사용자가 NodeResizer로 명시 저장한 값 (최우선, 지속됨)
+//   2) measuredSizes[id]  — React Flow가 측정한 런타임 DOM 크기 (렌더 후 사용 가능)
+//   3) NODE_WIDTH/HEIGHT  — 마지막 fallback (실제 렌더보다 크게 잡아 겹침 방지)
+function buildSizeMap(
+  nodes: SerializedNode[],
+  measured?: Map<string, { width: number; height: number }>,
+): Map<string, { width: number; height: number }> {
   const sizes = new Map<string, { width: number; height: number }>();
   for (const n of nodes) {
-    const w = typeof n.data.width === 'number' ? n.data.width : NODE_WIDTH;
-    const h = typeof n.data.height === 'number' ? n.data.height : NODE_HEIGHT;
+    const dataW = typeof n.data.width === 'number' ? n.data.width : undefined;
+    const dataH = typeof n.data.height === 'number' ? n.data.height : undefined;
+    const measuredEntry = measured?.get(n.id);
+    const w = dataW ?? measuredEntry?.width ?? NODE_WIDTH;
+    const h = dataH ?? measuredEntry?.height ?? NODE_HEIGHT;
     sizes.set(n.id, { width: w, height: h });
   }
   return sizes;
@@ -254,9 +266,10 @@ function resolveOverlaps2D(
 export function computeLayout(
   nodes: SerializedNode[],
   direction: LayoutDirection = 'vertical',
+  measuredSizes?: Map<string, { width: number; height: number }>,
 ): Map<string, { x: number; y: number }> {
   const roots = buildTree(nodes);
-  const sizes = buildSizeMap(nodes);
+  const sizes = buildSizeMap(nodes, measuredSizes);
   const positions = new Map<string, { x: number; y: number }>();
 
   if (direction === 'vertical') {

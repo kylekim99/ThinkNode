@@ -184,7 +184,14 @@ export function useKeyboardShortcuts() {
       //   편집 중 → Enter → MindMapNode의 input이 자체 처리 (commitEdit → 편집 종료)
       //   위 두 상태가 반복되면 Enter 반복만으로 형제 노드 계속 생성 가능
       // Root 노드에서는 형제가 불가 → 자식(addNode) 생성으로 폴백
+      //
+      // double-trigger 방어 (Boss msg 3020):
+      //   MindMapNode input이 stopImmediatePropagation을 호출해 native bubble을 끊지만
+      //   혹시 놓친 케이스를 대비해 200ms 이내에 commitEdit이 있었다면 새 노드 생성 skip.
+      //   (primary: stopImmediatePropagation, secondary: lastCommitAt timestamp)
       if (e.key === 'Enter' && !e.shiftKey) {
+        const lastCommit = useMapStore.getState().lastCommitAt;
+        if (Date.now() - lastCommit < 200) return;
         e.preventDefault();
         const selectedNode = nodes.find((n) => n.id === selectedNodeId);
         if (selectedNode && !selectedNode.data.parentId) {

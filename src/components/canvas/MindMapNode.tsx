@@ -16,6 +16,9 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
   const layoutDirection = useMapStore((s) => s.layoutDirection);
   // 노드 리사이즈 액션 (선택된 노드 모서리에서 드래그 → 저장)
   const resizeNode = useMapStore((s) => s.resizeNode);
+  // 편집 종료 직후 전역 keydown 리스너가 같은 Enter 이벤트로 새 노드를 만드는
+  // double-trigger를 막기 위한 타임스탬프 갱신 액션
+  const markCommit = useMapStore((s) => s.markCommit);
 
   const isEditing = editingNodeId === id;
   const [editValue, setEditValue] = useState(data.content);
@@ -48,13 +51,15 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
     if (trimmed && trimmed !== data.content) {
       updateNodeContent(id, trimmed);
     }
+    // 커밋 순간 타임스탬프를 기록 → 곧바로 이어지는 global keydown Enter가 새 노드 생성을 skip
+    markCommit();
     setEditingNode(null);
     // Return focus to the canvas so global keyboard shortcuts (Enter for sibling) work immediately
     requestAnimationFrame(() => {
       const pane = document.querySelector('.react-flow__pane') as HTMLElement;
       pane?.focus();
     });
-  }, [editValue, data.content, id, updateNodeContent, setEditingNode]);
+  }, [editValue, data.content, id, updateNodeContent, setEditingNode, markCommit]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,15 +69,30 @@ function MindMapNodeComponent({ id, data, selected }: MindMapNodeProps) {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // IME 조합 중 Enter는 조합 확정 전용 → 편집 종료·전파 방지 로직을 건너뜀
+      if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) {
+        return;
+      }
       if (e.key === 'Enter') {
         e.preventDefault();
+        // React SyntheticEvent 전파 + 네이티브 이벤트 전파(window listener까지) 모두 차단
+        // ↳ 이 두 줄이 없으면 native bubble이 window에 도달하여 useKeyboardShortcuts가 새 노드 생성 (double-trigger 버그의 primary 원인)
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
         commitEdit();
+        return;
       }
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
         setEditingNode(null);
+        return;
       }
+      // 그 외 키(백스페이스/Del/방향키 등)는 native 기본 동작(텍스트 편집)만 허용
+      // 전역 노드 shortcut으로 전파되지 않도록 native 전파도 명시적으로 중단
       e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
     },
     [commitEdit, setEditingNode]
   );

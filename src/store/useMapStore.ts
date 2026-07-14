@@ -53,6 +53,21 @@ function deserializeEdges(edges: SerializedEdge[]): Edge[] {
   }));
 }
 
+// React Flow가 렌더 후 측정한 실제 DOM 크기(Node.width/height)를 layoutEngine에 넘길 수 있도록 Map으로 추출.
+// data.width/height(사용자 저장 리사이즈 값)가 우선이므로 여기서는 fallback 용도.
+function collectMeasuredSizes(nodes: Node<MindMapNodeData>[]): Map<string, { width: number; height: number }> {
+  const map = new Map<string, { width: number; height: number }>();
+  for (const n of nodes) {
+    // React Flow Node 타입에는 width/height가 optional로 존재 (측정 완료 후 채워짐)
+    const w = (n as { width?: number | null }).width;
+    const h = (n as { height?: number | null }).height;
+    if (typeof w === 'number' && typeof h === 'number' && w > 0 && h > 0) {
+      map.set(n.id, { width: w, height: h });
+    }
+  }
+  return map;
+}
+
 function edgesFromNodes(nodes: Node<MindMapNodeData>[], layoutDir?: LayoutDirection): Edge[] {
   const edges: Edge[] = [];
   for (const node of nodes) {
@@ -119,6 +134,9 @@ interface MapStore {
   past: HistoryEntry[];
   future: HistoryEntry[];
   dirty: boolean;
+  // 편집 종료(commitEdit) 순간 기록되는 타임스탬프. 전역 Enter 리스너가 200ms 이내면 skip → 편집 종료+새 노드 생성 double-trigger 방지
+  lastCommitAt: number;
+  markCommit: () => void;
 
   init: () => Promise<void>;
   createMap: (name: string, type?: 'mindmap' | 'flowchart') => Promise<void>;
@@ -174,6 +192,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
   past: [],
   future: [],
   dirty: false,
+  lastCommitAt: 0,
+
+  markCommit: () => set({ lastCommitAt: Date.now() }),
 
   init: async () => {
     const maps = await getAllMaps();
@@ -297,9 +318,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const newNodes = [...state.nodes, newNode];
     const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
-    // 현재 레이아웃 방향에 맞춰 자동 정렬
+    // 현재 레이아웃 방향에 맞춰 자동 정렬 (React Flow 측정 크기 fallback 반영 → 겹침 회피 강화)
     const serialized = serializeNodes(newNodes);
-    const positions = computeLayout(serialized, state.layoutDirection);
+    const measured = collectMeasuredSizes(newNodes);
+    const positions = computeLayout(serialized, state.layoutDirection, measured);
     for (const n of newNodes) {
       const pos = positions.get(n.id);
       if (pos) n.position = pos;
@@ -332,9 +354,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const newNodes = [...state.nodes, newNode];
     const newEdges = edgesFromNodes(newNodes, get().layoutDirection);
 
-    // 현재 레이아웃 방향에 맞춰 자동 정렬
+    // 현재 레이아웃 방향에 맞춰 자동 정렬 (React Flow 측정 크기 fallback 반영 → 겹침 회피 강화)
     const serialized = serializeNodes(newNodes);
-    const positions = computeLayout(serialized, state.layoutDirection);
+    const measured = collectMeasuredSizes(newNodes);
+    const positions = computeLayout(serialized, state.layoutDirection, measured);
     for (const n of newNodes) {
       const pos = positions.get(n.id);
       if (pos) n.position = pos;
@@ -643,7 +666,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const dir = direction || state.layoutDirection;
     const newPast = pushHistory(state);
     const serialized = serializeNodes(state.nodes);
-    const positions = computeLayout(serialized, dir);
+    const measured = collectMeasuredSizes(state.nodes);
+    const positions = computeLayout(serialized, dir, measured);
     const newNodes = state.nodes.map((n) => {
       const pos = positions.get(n.id);
       return pos ? { ...n, position: pos } : n;
